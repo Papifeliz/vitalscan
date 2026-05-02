@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VitalScan Pro</title>
+<script>if(location.hash.startsWith('#report/'))document.write('<style>.screen{display:none!important}</style>');</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+:root{
+  --gold:#C9A84C;--gold2:#E8C97A;--gold3:#8B6914;
+  --bg:#050505;--bg2:#0D0D0D;--bg3:#141414;--bg4:#1C1C1C;
+  --text:#F5F2EE;--text2:#8A8075;--text3:#4A453F;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.1);--border3:rgba(201,168,76,0.3);
+  --green:#30D158;--red:#FF453A;--orange:#FF9F0A;
+  --r:16px;--r2:12px;--r3:8px;
+}
+html,body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;min-height:100vh}
+.screen{display:none;min-height:100vh}
+.screen.active{display:block}
+.glass{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--r)}
+.glass-gold{background:rgba(201,168,76,0.05);border:1px solid var(--border3);border-radius:var(--r)}
+input,textarea,select{width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--border2);border-radius:var(--r3);padding:13px 15px;color:var(--text);font-size:15px;outline:none;transition:border .2s;font-family:inherit;-webkit-appearance:none}
+input:focus,textarea:focus,select:focus{border-color:rgba(201,168,76,0.5)}
+textarea{resize:vertical;min-height:140px;line-height:1.6}
+select option{background:#1C1C1C}
+input::placeholder,textarea::placeholder{color:var(--text3)}
+.btn{display:block;width:100%;padding:15px;border:none;border-radius:var(--r2);font-size:15px;font-weight:500;cursor:pointer;transition:all .25s;font-family:inherit}
+.btn-gold{background:linear-gradient(135deg,#B8901F,var(--gold),#E8C97A);color:#000}
+.btn-gold:hover{opacity:.92;transform:translateY(-1px)}
+.btn-ghost{background:rgba(255,255,255,0.05);border:1px solid var(--border2);color:var(--text2)}
+.btn-ghost:hover{background:rgba(255,255,255,0.08);color:var(--text)}
+.btn-sm{width:auto;padding:9px 18px;font-size:13px}
+.btn-icon{width:36px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(255,255,255,0.06);border:1px solid var(--border);cursor:pointer}
+.field{margin-bottom:18px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2);display:block;margin-bottom:8px}
+.range-row{display:flex;align-items:center;gap:12px;margin-top:4px}
+.range-row input[type=range]{flex:1;-webkit-appearance:none;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;border:none;padding:0;outline:none}
+.range-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--gold);cursor:pointer}
+.range-val{min-width:44px;text-align:right;font-size:15px;font-weight:500;color:var(--gold)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:8px 16px;border:1px solid var(--border2);border-radius:20px;font-size:13px;cursor:pointer;color:var(--text2);transition:all .2s}
+.chip.on{border-color:var(--gold);color:var(--gold);background:rgba(201,168,76,.08)}
+.tabs{display:flex;background:rgba(255,255,255,0.04);border-radius:var(--r2);padding:4px;gap:4px;margin-bottom:24px}
+.tab{flex:1;padding:9px;border-radius:10px;font-size:13px;text-align:center;cursor:pointer;color:var(--text2);transition:all .2s}
+.tab.on{background:rgba(255,255,255,0.08);color:var(--text);font-weight:500}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:20px}
+.back-btn{display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--text2);font-size:14px;cursor:pointer;font-family:inherit}
+.section{margin-bottom:16px;padding:20px}
+.sec-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.sec-lbl::after{content:'';flex:1;height:1px;background:var(--border3)}
+.lead-item{display:flex;justify-content:space-between;align-items:center;padding:16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:var(--r2);margin-bottom:10px;cursor:pointer;transition:all .2s}
+.lead-item:hover{background:rgba(255,255,255,0.04);border-color:var(--border3)}
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;gap:16px}
+.spinner{width:44px;height:44px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.report-hero{background:radial-gradient(ellipse at 50% 0%,rgba(201,168,76,.12) 0%,transparent 70%);padding:40px 20px 24px;text-align:center}
+.score-circle{position:relative;width:150px;height:150px;margin:0 auto 20px}
+.score-circle svg{position:absolute;top:0;left:0}
+.score-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 20px 16px}
+.cat-card{padding:16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:var(--r2)}
+.bar{height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;margin-top:8px}
+.bar-fill{height:100%;border-radius:2px;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+.dtag{display:inline-flex;align-items:center;padding:5px 11px;background:rgba(255,69,58,.08);border:1px solid rgba(255,69,58,.2);border-radius:20px;font-size:12px;color:#FF6B63;margin:3px}
+.scenario{border-radius:var(--r2);padding:16px;margin-bottom:10px}
+.sbad{background:rgba(255,69,58,.06);border:1px solid rgba(255,69,58,.15)}
+.sgood{background:rgba(48,209,88,.06);border:1px solid rgba(48,209,88,.15)}
+.pauta-item{padding:14px;background:rgba(255,255,255,0.02);border-radius:var(--r2);border-left:2px solid var(--gold);margin-bottom:8px}
+.mrow{display:flex;justify-content:space-between;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--border);font-size:13px}
+.mrow:last-child{border:none}
+.plan-box{padding:12px 14px;background:rgba(255,255,255,0.02);border-radius:var(--r2);margin-bottom:8px}
+.or{text-align:center;color:var(--text3);font-size:12px;letter-spacing:2px;margin:20px 0;position:relative}
+.or::before,.or::after{content:'';position:absolute;top:50%;width:44%;height:1px;background:var(--border)}
+.or::before{left:0}.or::after{right:0}
+.err{color:#FF453A;font-size:12px;margin-top:6px;display:none}
+.ok-msg{color:var(--green);font-size:12px;margin-top:6px;display:none}
+.hist-item{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:var(--r2);margin-bottom:8px;cursor:pointer;transition:border .2s}
+.hist-item:hover{border-color:var(--border3)}
+.logo-mark{font-size:13px;font-weight:700;letter-spacing:4px;color:var(--gold)}
+.logo-sub{font-size:10px;letter-spacing:3px;color:var(--text3)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="s-login" class="screen active" style="display:flex;align-items:center;justify-content:center;padding:24px">
+  <div style="width:100%;max-width:380px">
+    <div style="text-align:center;margin-bottom:36px">
+      <div style="width:56px;height:56px;background:linear-gradient(135deg,var(--gold3),var(--gold));border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="10" stroke="#000" stroke-width="1.5"/><path d="M13 8v5l3 2" stroke="#000" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </div>
+      <div class="logo-mark">VITALSCAN</div>
+      <div class="logo-sub" style="margin-top:4px">WELLNESS INTELLIGENCE PRO</div>
+    </div>
+    <div class="glass" style="padding:28px">
+      <div class="field"><span class="label">Email</span><input type="email" id="li-email" placeholder="distribuidor@email.com"></div>
+      <div class="field"><span class="label">Contraseña</span><input type="password" id="li-pass" placeholder="••••••••"></div>
+      <div id="li-err" class="err"></div>
+      <div style="height:12px"></div>
+      <button class="btn btn-gold" onclick="doLogin()">Entrar</button>
+      <div style="text-align:center;margin-top:14px">
+        <span style="font-size:12px;color:var(--text2);cursor:pointer;text-decoration:underline" onclick="go('s-recover')">¿Olvidaste tu contraseña?</span>
+      </div>
+      <div class="or">o</div>
+      <button class="btn btn-ghost" onclick="go('s-reg')">Crear cuenta de distribuidor</button>
+      <div style="text-align:center;margin-top:20px">
+        <span onclick="go('s-admin-login')" style="font-size:11px;color:var(--text3);cursor:pointer;letter-spacing:1px">⬡ Acceso administración</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- REGISTER -->
+<div id="s-reg" class="screen" style="display:flex;align-items:center;justify-content:center;padding:24px">
+  <div style="width:100%;max-width:380px">
+    <div style="text-align:center;margin-bottom:28px"><div class="logo-mark">VITALSCAN</div><div class="logo-sub" style="margin-top:4px">NUEVA CUENTA</div></div>
+    <div class="glass" style="padding:28px">
+      <div class="field"><span class="label">Nombre</span><input type="text" id="rg-name" placeholder="Tu nombre completo"></div>
+      <div class="field"><span class="label">Email</span><input type="email" id="rg-email" placeholder="tu@email.com"></div>
+      <div class="field"><span class="label">Contraseña</span><input type="password" id="rg-pass" placeholder="Mínimo 6 caracteres"></div>
+      <div id="rg-err" class="err"></div><div id="rg-ok" class="ok-msg"></div>
+      <div style="height:12px"></div>
+      <button class="btn btn-gold" onclick="doReg()">Crear cuenta</button>
+      <div style="height:10px"></div>
+      <button class="btn btn-ghost" onclick="go('s-login')">Ya tengo cuenta</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN LOGIN -->
+<div id="s-admin-login" class="screen" style="display:flex;align-items:center;justify-content:center;padding:24px">
+  <div style="width:100%;max-width:380px">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="width:48px;height:48px;background:rgba(201,168,76,0.1);border:1px solid var(--border3);border-radius:12px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="10" width="16" height="10" rx="2" stroke="var(--gold)" stroke-width="1.5"/><path d="M7 10V7a4 4 0 018 0v3" stroke="var(--gold)" stroke-width="1.5" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="var(--gold)"/></svg>
+      </div>
+      <div class="logo-mark">VITALSCAN</div>
+      <div class="logo-sub" style="margin-top:4px">PANEL DE ADMINISTRACIÓN</div>
+    </div>
+    <div class="glass-gold" style="padding:28px">
+      <div class="field"><span class="label">Email admin</span><input type="email" id="al-email" placeholder="admin@vitalscan.pro"></div>
+      <div class="field"><span class="label">Contraseña</span><input type="password" id="al-pass" placeholder="••••••••"></div>
+      <div id="al-err" class="err"></div>
+      <div style="height:12px"></div>
+      <button class="btn btn-gold" onclick="doAdminLogin()">Acceder al panel</button>
+      <div style="height:10px"></div>
+      <button class="btn btn-ghost" onclick="go('s-login')">← Volver</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECOVER -->
+<div id="s-recover" class="screen" style="display:flex;align-items:center;justify-content:center;padding:24px">
+  <div style="width:100%;max-width:380px">
+    <div style="text-align:center;margin-bottom:28px"><div class="logo-mark">VITALSCAN</div><div class="logo-sub" style="margin-top:4px">RECUPERAR ACCESO</div></div>
+    <div class="glass" style="padding:28px">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6">Contacta con tu administrador para obtener tu código de recuperación.</p>
+      <div class="field"><span class="label">Tu email</span><input type="email" id="rc-email" placeholder="tu@email.com"></div>
+      <div class="field"><span class="label">Código de recuperación</span><input type="text" id="rc-code" placeholder="XXXXXXXX" maxlength="8" style="letter-spacing:4px;text-transform:uppercase"></div>
+      <div class="field"><span class="label">Nueva contraseña</span><input type="password" id="rc-pass" placeholder="Mínimo 6 caracteres"></div>
+      <div id="rc-err" class="err"></div><div id="rc-ok" class="ok-msg"></div>
+      <div style="height:12px"></div>
+      <button class="btn btn-gold" onclick="doRecover()">Cambiar contraseña</button>
+      <div style="height:10px"></div>
+      <button class="btn btn-ghost" onclick="go('s-login')">Volver al acceso</button>
+    </div>
+  </div>
+</div>
+
+<!-- SUPERADMIN -->
+<div id="s-admin" class="screen">
+  <div class="topbar">
+    <div><div class="logo-sub">PANEL</div><div style="font-size:17px;font-weight:600;color:var(--gold);margin-top:2px">Superadmin</div></div>
+    <button class="btn-icon" onclick="doLogout()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M10 11l3-3-3-3M13 8H6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+  <div style="padding:0 20px 40px">
+    <div id="admin-stats" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px"></div>
+    <div class="sec-lbl">Distribuidores registrados</div>
+    <div id="admin-list"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="s-dash" class="screen">
+  <div class="topbar">
+    <div><div class="logo-sub">DISTRIBUIDOR</div><div id="dash-name" style="font-size:17px;font-weight:600;color:var(--gold);margin-top:2px"></div></div>
+    <button class="btn-icon" onclick="doLogout()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M10 11l3-3-3-3M13 8H6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+  <div style="padding:0 20px 30px">
+    <div class="tabs" id="main-tabs">
+      <div class="tab on" onclick="switchTab('leads',0)">Mis Clientes</div>
+      <div class="tab" onclick="switchTab('nuevo',1)">Nuevo Análisis</div>
+    </div>
+    <div id="t-leads">
+      <div class="sec-lbl">Base de clientes</div>
+      <div id="leads-list"></div>
+      <div id="leads-empty" style="display:none;text-align:center;padding:60px 0;color:var(--text2);font-size:13px">
+        <div style="font-size:36px;opacity:.2;margin-bottom:12px">◎</div>Aún no tienes clientes.<br>Crea tu primer análisis.
+      </div>
+    </div>
+    <div id="t-nuevo" style="display:none">
+      <div class="tabs" id="mode-tabs">
+        <div class="tab on" onclick="switchMode('form',0)">Formulario</div>
+        <div class="tab" onclick="switchMode('text',1)">Transcripción IA</div>
+      </div>
+      <div id="m-form">
+        <div class="glass section">
+          <div class="sec-lbl">Cliente</div>
+          <div class="grid2">
+            <div class="field"><span class="label">Nombre</span><input type="text" id="f-nom" placeholder="Nombre completo"></div>
+            <div class="field"><span class="label">Teléfono</span><input type="tel" id="f-tel" placeholder="+34 600..."></div>
+          </div>
+          <div class="grid3">
+            <div class="field"><span class="label">Edad</span><input type="number" id="f-edad" placeholder="años"></div>
+            <div class="field"><span class="label">Peso kg</span><input type="number" id="f-peso" placeholder="kg"></div>
+            <div class="field"><span class="label">Altura cm</span><input type="number" id="f-alt" placeholder="cm"></div>
+          </div>
+          <div class="field"><span class="label">Sexo biológico</span>
+            <select id="f-sexo" onchange="document.getElementById('cadera-w').style.display=this.value==='mujer'?'block':'none'">
+              <option value="">Seleccionar</option><option value="mujer">Mujer</option><option value="hombre">Hombre</option>
+            </select>
+          </div>
+          <div class="grid3">
+            <div class="field"><span class="label">Cuello cm</span><input type="number" id="f-cuello" placeholder="cm"></div>
+            <div class="field"><span class="label">Cintura cm</span><input type="number" id="f-cintura" placeholder="cm"></div>
+            <div id="cadera-w" class="field" style="display:none"><span class="label">Cadera cm</span><input type="number" id="f-cadera" placeholder="cm"></div>
+          </div>
+        </div>
+        <div class="glass section">
+          <div class="sec-lbl">Hábitos</div>
+          <div class="field"><span class="label">Actividad física</span>
+            <select id="f-act"><option value="">Seleccionar</option><option value="sedentario">Sedentario</option><option value="ligero">Ligero 1-2 días/sem</option><option value="moderado">Moderado 3-4 días/sem</option><option value="activo">Activo 5-6 días/sem</option><option value="muy_activo">Muy activo, diario</option></select>
+          </div>
+          <div class="field"><span class="label">Horas de sueño</span>
+            <div class="range-row"><input type="range" id="f-sueno" min="3" max="10" step=".5" value="7" oninput="rv('fsvv',this.value+'h')"><div class="range-val" id="fsvv">7h</div></div>
+          </div>
+          <div class="field"><span class="label">Calidad del sueño</span>
+            <select id="f-squal"><option value="">Seleccionar</option><option value="malo">Malo</option><option value="regular">Regular</option><option value="bueno">Bueno</option><option value="excelente">Excelente</option></select>
+          </div>
+          <div class="field"><span class="label">Energía diaria (1-10)</span>
+            <div class="range-row"><input type="range" id="f-energ" min="1" max="10" value="5" oninput="rv('fevv',this.value+'/10')"><div class="range-val" id="fevv">5/10</div></div>
+          </div>
+          <div class="field"><span class="label">Concentración (1-10)</span>
+            <div class="range-row"><input type="range" id="f-mental" min="1" max="10" value="5" oninput="rv('fmvv',this.value+'/10')"><div class="range-val" id="fmvv">5/10</div></div>
+          </div>
+          <div class="field"><span class="label">Estrés (1-10)</span>
+            <div class="range-row"><input type="range" id="f-estres" min="1" max="10" value="5" oninput="rv('fesv',this.value+'/10')"><div class="range-val" id="fesv">5/10</div></div>
+          </div>
+        </div>
+        <div class="glass section">
+          <div class="sec-lbl">Nutrición</div>
+          <div class="grid2">
+            <div class="field"><span class="label">Comidas al día</span>
+              <select id="f-comidas"><option value="">Seleccionar</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4-5">4-5</option></select>
+            </div>
+            <div class="field"><span class="label">Agua L/día</span>
+              <div class="range-row"><input type="range" id="f-agua" min=".5" max="4" step=".5" value="1.5" oninput="rv('faqv',this.value+'L')"><div class="range-val" id="faqv">1.5L</div></div>
+            </div>
+          </div>
+          <div class="field"><span class="label">Calidad dieta</span>
+            <select id="f-dieta"><option value="">Seleccionar</option><option value="muy_mala">Muy mala</option><option value="mala">Mala</option><option value="regular">Regular</option><option value="buena">Buena</option><option value="muy_buena">Excelente</option></select>
+          </div>
+          <div class="field"><span class="label">Proteína de calidad</span>
+            <select id="f-prot"><option value="">Seleccionar</option><option value="nunca">Nunca</option><option value="poco">1-2 veces/sem</option><option value="regular">3-4 veces/sem</option><option value="diario">Diario</option></select>
+          </div>
+          <div class="field"><span class="label">Estado de la piel</span>
+            <select id="f-piel"><option value="">Seleccionar</option><option value="muy_malo">Muy mala</option><option value="malo">Mala</option><option value="regular">Regular</option><option value="bueno">Buena</option><option value="excelente">Excelente</option></select>
+          </div>
+          <div class="field"><span class="label">Objetivos</span>
+            <div class="chips" id="f-obj">
+              <div class="chip" data-v="perder_grasa" onclick="tc(this)">Perder grasa</div>
+              <div class="chip" data-v="ganar_musculo" onclick="tc(this)">Ganar músculo</div>
+              <div class="chip" data-v="mas_energia" onclick="tc(this)">Más energía</div>
+              <div class="chip" data-v="mejor_piel" onclick="tc(this)">Mejorar piel</div>
+              <div class="chip" data-v="mejor_sueno" onclick="tc(this)">Dormir mejor</div>
+              <div class="chip" data-v="concentracion" onclick="tc(this)">Concentración</div>
+              <div class="chip" data-v="bienestar" onclick="tc(this)">Bienestar general</div>
+            </div>
+          </div>
+          <div class="field"><span class="label">Contexto adicional</span><textarea id="f-extra" placeholder="Síntomas, medicación, lesiones..."></textarea></div>
+        </div>
+        <div id="f-err" class="err" style="margin-bottom:12px"></div>
+        <button class="btn btn-gold" onclick="submitForm()" style="margin-bottom:30px">Generar análisis con IA →</button>
+      </div>
+      <div id="m-text" style="display:none">
+        <div class="glass section">
+          <div class="sec-lbl">Cliente</div>
+          <div class="grid2">
+            <div class="field"><span class="label">Nombre</span><input type="text" id="t-nom" placeholder="Nombre completo"></div>
+            <div class="field"><span class="label">Teléfono</span><input type="tel" id="t-tel" placeholder="+34 600..."></div>
+          </div>
+        </div>
+        <div class="glass section">
+          <div class="sec-lbl">Transcripción o resumen</div>
+          <p style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">Pega aquí la transcripción de la llamada o cualquier texto con información del cliente.</p>
+          <textarea id="t-txt" style="min-height:220px" placeholder="Ej: Laura tiene 34 años, pesa 71kg, mide 163cm..."></textarea>
+        </div>
+        <div id="t-err" class="err" style="margin-bottom:12px"></div>
+        <button class="btn btn-gold" onclick="submitText()" style="margin-bottom:30px">Analizar con IA →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- REPORT -->
+<div id="s-report" class="screen">
+  <div class="topbar">
+    <button class="back-btn" onclick="backToDash()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Volver
+    </button>
+    <div class="logo-sub">INFORME DE BIENESTAR</div>
+  </div>
+  <div id="report-body"></div>
+</div>
+
+<!-- LEAD DETAIL -->
+<div id="s-lead" class="screen">
+  <div class="topbar">
+    <button class="back-btn" onclick="backToDash()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Volver
+    </button>
+    <div class="logo-sub">PERFIL CLIENTE</div>
+  </div>
+  <div id="lead-body" style="padding:20px"></div>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────
+const AKEY='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';
+const MODEL='claude-haiku-4-5-20251001';
+const ICONS={nutricion:'🥗',energia:'⚡',sueno:'🌙',piel:'✨',composicion:'💪',mental:'🧠'};
+const ADMIN_EMAIL='admin@vitalscan.pro';
+const ADMIN_PASS='VitalAdmin2025!';
+
+// ─── SUPABASE ─────────────────────────────────────────
+const SB_URL='https://yjocikkyjqcczubzstsj.supabase.co';
+const SB_KEY='sb_publishable_1s5mnGJNisIS8vsSmuf8iQ_pOW8qZIt';
+
+async function sbFetch(path, method='GET', body=null){
+  const opts={method,headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'}};
+  if(body) opts.body=JSON.stringify(body);
+  const res=await fetch(SB_URL+'/rest/v1/'+path,opts);
+  const text=await res.text();
+  if(!text) return [];
+  try{return JSON.parse(text)}catch(e){return []}
+}
+
+async function sbGet(table, filter=''){
+  return sbFetch(table+(filter?'?'+filter:''));
+}
+async function sbInsert(table, data){
+  return sbFetch(table,'POST',data);
+}
+async function sbUpdate(table, filter, data){
+  return sbFetch(table+'?'+filter,'PATCH',data);
+}
+async function sbDelete(table, filter){
+  return sbFetch(table+'?'+filter,'DELETE');
+}
+
+// ─── STATE ────────────────────────────────────────────
+let CU=null; // current user object
+let CUR_REPORT=null;
+let CUR_LEAD_ID=null;
+
+// ─── UTILS ────────────────────────────────────────────
+function go(id){
+  document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='none'});
+  const el=document.getElementById(id);el.style.display='block';el.classList.add('active');
+}
+function rv(id,v){document.getElementById(id).textContent=v}
+function tc(el){el.classList.toggle('on')}
+function gv(id){return(document.getElementById(id)||{}).value||''}
+function sc(s){return s>=70?'var(--green)':s>=45?'var(--orange)':'var(--red)'}
+function fmt(d){return new Date(d).toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'})}
+function genCode(){return Math.random().toString(36).substring(2,10).toUpperCase()}
+
+function switchTab(t,idx){
+  document.querySelectorAll('#main-tabs .tab').forEach((e,i)=>e.classList.toggle('on',i===idx));
+  document.getElementById('t-leads').style.display=t==='leads'?'block':'none';
+  document.getElementById('t-nuevo').style.display=t==='nuevo'?'block':'none';
+}
+function switchMode(m,idx){
+  document.querySelectorAll('#mode-tabs .tab').forEach((e,i)=>e.classList.toggle('on',i===idx));
+  document.getElementById('m-form').style.display=m==='form'?'block':'none';
+  document.getElementById('m-text').style.display=m==='text'?'block':'none';
+}
+
+// ─── ADMIN ────────────────────────────────────────────
+function doAdminLogin(){
+  const e=gv('al-email').trim().toLowerCase(),p=gv('al-pass').trim();
+  const err=document.getElementById('al-err');err.style.display='none';
+  if(e===ADMIN_EMAIL.toLowerCase()&&p===ADMIN_PASS){
+    setTimeout(()=>{renderAdmin();go('s-admin');},0);return;
+  }
+  err.textContent='Credenciales incorrectas';err.style.display='block';
+}
+
+async function renderAdmin(){
+  document.getElementById('admin-stats').innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:20px"><div class="spinner" style="margin:0 auto"></div></div>`;
+  const users=await sbGet('users','select=*&order=created_at.desc');
+  const leads=await sbGet('leads','select=distributor_email');
+  const totalLeads=leads.length;
+  const byDist={};leads.forEach(l=>{byDist[l.distributor_email]=(byDist[l.distributor_email]||0)+1});
+  document.getElementById('admin-stats').innerHTML=`
+    <div class="glass" style="padding:16px;text-align:center">
+      <div style="font-size:32px;font-weight:700;color:var(--gold)">${users.length}</div>
+      <div style="font-size:11px;letter-spacing:1px;color:var(--text2);margin-top:4px">DISTRIBUIDORES</div>
+    </div>
+    <div class="glass" style="padding:16px;text-align:center">
+      <div style="font-size:32px;font-weight:700;color:var(--green)">${totalLeads}</div>
+      <div style="font-size:11px;letter-spacing:1px;color:var(--text2);margin-top:4px">CLIENTES TOTALES</div>
+    </div>`;
+  document.getElementById('admin-list').innerHTML=!users.length
+    ?`<div style="text-align:center;padding:40px;color:var(--text2);font-size:13px">Aún no hay distribuidores.</div>`
+    :users.map(u=>{
+      const n=byDist[u.email]||0;
+      return`<div class="glass" style="padding:16px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+          <div>
+            <div style="font-size:15px;font-weight:500">${u.name}</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">${u.email}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px">Registro: ${fmt(u.created_at)}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:24px;font-weight:600;color:var(--green)">${n}</div>
+            <div style="font-size:10px;color:var(--text2);letter-spacing:1px">CLIENTES</div>
+          </div>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:10px;letter-spacing:1.5px;color:var(--text2);text-transform:uppercase;margin-bottom:3px">Código recuperación</div>
+            <div style="font-size:16px;font-weight:600;letter-spacing:4px;color:var(--gold)">${u.recovery_code||'—'}</div>
+          </div>
+          <button onclick="resetCode('${u.email}')" style="background:none;border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-size:11px;padding:6px 10px;cursor:pointer;font-family:inherit">Regenerar</button>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+async function resetCode(email){
+  const code=genCode();
+  await sbUpdate('users','email=eq.'+encodeURIComponent(email),{recovery_code:code});
+  renderAdmin();
+}
+
+// ─── AUTH ─────────────────────────────────────────────
+async function doReg(){
+  const n=gv('rg-name').trim(),e=gv('rg-email').trim().toLowerCase(),p=gv('rg-pass');
+  const err=document.getElementById('rg-err'),ok=document.getElementById('rg-ok');
+  err.style.display='none';ok.style.display='none';
+  if(!n||!e||!p){err.textContent='Completa todos los campos';err.style.display='block';return}
+  if(p.length<6){err.textContent='Contraseña mínimo 6 caracteres';err.style.display='block';return}
+  if(e===ADMIN_EMAIL.toLowerCase()){err.textContent='Email no disponible';err.style.display='block';return}
+  ok.textContent='Verificando...';ok.style.display='block';
+  const existing=await sbGet('users','email=eq.'+encodeURIComponent(e));
+  if(existing.length){err.textContent='Email ya registrado';err.style.display='block';ok.style.display='none';return}
+  const code=genCode();
+  const res=await sbInsert('users',{email:e,name:n,password:p,recovery_code:code});
+  if(!res||res.error){err.textContent='Error al crear cuenta';err.style.display='block';ok.style.display='none';return}
+  ok.textContent='Cuenta creada, accediendo...';
+  setTimeout(()=>loginUser(res[0]||{email:e,name:n}),800);
+}
+
+async function doLogin(){
+  const e=gv('li-email').trim().toLowerCase(),p=gv('li-pass').trim();
+  const err=document.getElementById('li-err');err.style.display='none';
+  if(e===ADMIN_EMAIL.toLowerCase()&&p===ADMIN_PASS){setTimeout(()=>{renderAdmin();go('s-admin');},0);return}
+  const users=await sbGet('users','email=eq.'+encodeURIComponent(e)+'&password=eq.'+encodeURIComponent(p));
+  if(!users.length){err.textContent='Email o contraseña incorrectos';err.style.display='block';return}
+  loginUser(users[0]);
+}
+
+async function doRecover(){
+  const e=gv('rc-email').trim().toLowerCase(),code=gv('rc-code').trim().toUpperCase(),p=gv('rc-pass');
+  const err=document.getElementById('rc-err'),ok=document.getElementById('rc-ok');
+  err.style.display='none';ok.style.display='none';
+  if(p.length<6){err.textContent='Contraseña mínimo 6 caracteres';err.style.display='block';return}
+  const users=await sbGet('users','email=eq.'+encodeURIComponent(e)+'&recovery_code=eq.'+code);
+  if(!users.length){err.textContent='Email o código incorrecto';err.style.display='block';return}
+  const newCode=genCode();
+  await sbUpdate('users','email=eq.'+encodeURIComponent(e),{password:p,recovery_code:newCode});
+  ok.textContent='Contraseña actualizada. Accediendo...';ok.style.display='block';
+  setTimeout(()=>loginUser(users[0]),900);
+}
+
+function loginUser(u){
+  CU=u;
+  document.getElementById('dash-name').textContent=u.name;
+  CUR_LEAD_ID=null;
+  renderLeads();go('s-dash');
+}
+function doLogout(){CU=null;go('s-login')}
+function backToDash(){CUR_LEAD_ID=null;renderLeads();go('s-dash')}
+
+// ─── LEADS ────────────────────────────────────────────
+async function renderLeads(){
+  const list=document.getElementById('leads-list'),empty=document.getElementById('leads-empty');
+  list.innerHTML=`<div style="text-align:center;padding:40px"><div class="spinner" style="margin:0 auto"></div></div>`;
+  empty.style.display='none';
+  const leads=await sbGet('leads','distributor_email=eq.'+encodeURIComponent(CU.email)+'&order=date.desc');
+  if(!leads.length){list.innerHTML='';empty.style.display='block';return}
+  list.innerHTML=leads.map(l=>{
+    const s=l.report?.score||0,col=sc(s);
+    const lbl=s>=70?'Óptimo':s>=45?'Mejorable':'Crítico';
+    return`<div class="lead-item" onclick="openLead('${l.id}')">
+      <div>
+        <div style="font-size:16px;font-weight:500;margin-bottom:3px">${l.nombre}</div>
+        <div style="font-size:12px;color:var(--text2)">${l.telefono||'Sin teléfono'} · ${fmt(l.date)}</div>
+        <div style="margin-top:7px;font-size:11px;color:${col}"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${col};margin-right:5px;vertical-align:middle"></span>${lbl}</div>
+      </div>
+      <div style="text-align:right"><div style="font-size:28px;font-weight:600;color:${col}">${s}</div><div style="font-size:10px;color:var(--text2);letter-spacing:1px">SCORE</div></div>
+    </div>`;
+  }).join('');
+}
+
+async function openLead(id){
+  CUR_LEAD_ID=id;
+  const leads=await sbGet('leads','id=eq.'+id);
+  if(!leads.length)return;
+  const lead=leads[0];
+  const hist=lead.history||[{report:lead.report,date:lead.date}];
+  document.getElementById('lead-body').innerHTML=`
+    <div class="glass-gold" style="padding:20px;text-align:center;margin-bottom:20px">
+      <div style="font-size:11px;letter-spacing:2px;color:var(--text2);margin-bottom:5px">CLIENTE</div>
+      <div style="font-size:22px;font-weight:600">${lead.nombre}</div>
+      ${lead.telefono?`<div style="font-size:13px;color:var(--text2);margin-top:3px">${lead.telefono}</div>`:''}
+    </div>
+    <div class="sec-lbl">Historial de análisis</div>
+    ${hist.map((h,i)=>`<div class="hist-item" onclick="viewHist(${i},'${id}')">
+      <div><div style="font-size:14px;font-weight:500">${fmt(h.date)}</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:3px">${(h.report?.resumen||'Análisis completo').substring(0,55)}...</div></div>
+      <div style="font-size:28px;font-weight:600;color:var(--gold)">${h.report?.score||0}</div>
+    </div>`).join('')}
+    <div style="height:16px"></div>
+    ${lead.prompt_original?`<div class="glass section" style="margin-bottom:16px">
+      <div class="sec-lbl">Datos originales de la consulta</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.8;white-space:pre-wrap">${lead.prompt_original}</div>
+    </div>`:''}
+    <button class="btn btn-ghost" onclick="newForLead('${id}','${lead.nombre}','${lead.telefono||''}')">+ Nuevo análisis para este cliente</button>`;
+  go('s-lead');
+}
+
+async function viewHist(i,leadId){
+  const leads=await sbGet('leads','id=eq.'+leadId);
+  if(!leads.length)return;
+  const lead=leads[0];
+  const hist=lead.history||[{report:lead.report,date:lead.date}];
+  const h=hist[i];
+  if(!h||!h.report){alert('Este análisis no tiene datos disponibles.');return;}
+  // ensure cats exists
+  if(!h.report.cats) h.report.cats={
+    nutricion:{score:50,label:'Nutrición',estado:'Mejorable'},
+    energia:{score:50,label:'Energía',estado:'Mejorable'},
+    sueno:{score:50,label:'Descanso',estado:'Mejorable'},
+    piel:{score:50,label:'Piel & Glow',estado:'Mejorable'},
+    composicion:{score:50,label:'Composición',estado:'Mejorable'},
+    mental:{score:50,label:'Mente',estado:'Mejorable'}
+  };
+  CUR_REPORT={report:h.report,nombre:lead.nombre,telefono:lead.telefono,date:h.date};
+  renderReport(CUR_REPORT);go('s-report');
+}
+
+function newForLead(id,nombre,telefono){
+  CUR_LEAD_ID=id;
+  document.getElementById('f-nom').value=nombre;document.getElementById('f-tel').value=telefono;
+  document.getElementById('t-nom').value=nombre;document.getElementById('t-tel').value=telefono;
+  switchTab('nuevo',1);go('s-dash');
+}
+
+async function saveLead(entry){
+  if(CUR_LEAD_ID){
+    const leads=await sbGet('leads','id=eq.'+CUR_LEAD_ID);
+    if(leads.length){
+      const lead=leads[0];
+      const hist=lead.history||[{report:lead.report,date:lead.date}];
+      hist.push({report:entry.report,date:entry.date});
+      await sbUpdate('leads','id=eq.'+CUR_LEAD_ID,{report:entry.report,date:entry.date,history:hist});
+      return;
+    }
+  }
+  const res=await sbInsert('leads',{
+    distributor_email:CU.email,
+    nombre:entry.nombre,
+    telefono:entry.telefono||'',
+    date:entry.date,
+    report:entry.report,
+    history:[{report:entry.report,date:entry.date}]
+  });
+  if(res&&res[0]) CUR_LEAD_ID=res[0].id;
+}
+
+// ─── FORM SUBMIT ──────────────────────────────────────
+function submitForm(){
+  const nom=gv('f-nom'),err=document.getElementById('f-err');
+  if(!nom||!gv('f-edad')||!gv('f-peso')||!gv('f-alt')){err.textContent='Completa nombre, edad, peso y altura';err.style.display='block';return}
+  err.style.display='none';
+  const chips=[...document.querySelectorAll('#f-obj .chip.on')].map(c=>c.dataset.v).join(', ');
+  const prompt=`Cliente: ${nom}, ${gv('f-edad')} años, ${gv('f-sexo')}, ${gv('f-peso')}kg, ${gv('f-alt')}cm. Medidas: cuello ${gv('f-cuello')}cm, cintura ${gv('f-cintura')}cm, cadera ${gv('f-cadera')||'N/A'}cm. Actividad: ${gv('f-act')}. Sueño: ${gv('f-sueno')}h, calidad ${gv('f-squal')}. Energía: ${gv('f-energ')}/10. Concentración: ${gv('f-mental')}/10. Estrés: ${gv('f-estres')}/10. Comidas/día: ${gv('f-comidas')}. Agua: ${gv('f-agua')}L. Dieta: ${gv('f-dieta')}. Proteína: ${gv('f-prot')}. Piel: ${gv('f-piel')}. Objetivos: ${chips||'no especificados'}. Extra: ${gv('f-extra')||'ninguno'}.`;
+  runAI(prompt,nom,gv('f-tel'));
+}
+function submitText(){
+  const nom=gv('t-nom'),txt=gv('t-txt'),err=document.getElementById('t-err');
+  if(!nom||!txt){err.textContent='Añade nombre y texto';err.style.display='block';return}
+  err.style.display='none';
+  runAI(`Transcripción para análisis de bienestar. Nombre: ${nom}.\n\n${txt}`,nom,gv('t-tel'));
+}
+
+// ─── AI ENGINE ────────────────────────────────────────
+function setLoad(m){
+  document.getElementById('report-body').innerHTML=`<div class="loading"><div class="spinner"></div><div style="font-size:11px;letter-spacing:3px;color:var(--text2);text-transform:uppercase;margin-top:4px">${m}</div></div>`;
+}
+
+async function callAPI(systemPrompt,userPrompt,maxTok=1500){
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':AKEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:MODEL,max_tokens:maxTok,system:systemPrompt,messages:[{role:'user',content:userPrompt}]})
+  });
+  const data=await res.json();
+  if(data.error)throw new Error(JSON.stringify(data.error));
+  const raw=data.content[0].text;
+  const s=raw.indexOf('{'),e=raw.lastIndexOf('}');
+  if(s===-1)throw new Error('Sin JSON en respuesta');
+  // if truncated, try to close it
+  let jsonStr=e>s?raw.substring(s,e+1):raw.substring(s);
+  try{return JSON.parse(jsonStr)}catch(err){
+    // attempt repair: close open arrays/objects
+    let fixed=jsonStr;
+    // remove trailing incomplete string
+    fixed=fixed.replace(/,?\s*"[^"]*$/,'');
+    // remove trailing incomplete key:value
+    fixed=fixed.replace(/,?\s*"[^"]+"\s*:\s*[^,\}\]]*$/,'');
+    // count and close brackets
+    const opens=(fixed.match(/\[/g)||[]).length-(fixed.match(/\]/g)||[]).length;
+    const objs=(fixed.match(/\{/g)||[]).length-(fixed.match(/\}/g)||[]).length;
+    fixed+=']'.repeat(Math.max(0,opens))+'}'.repeat(Math.max(0,objs));
+    try{return JSON.parse(fixed)}catch(e2){throw new Error('JSON inválido: '+e2.message)}
+  }
+}
+
+async function runAI(prompt,nombre,telefono){
+  go('s-report');
+  try{
+    setLoad('Calculando métricas corporales...');
+    const r1=await callAPI('Experto en bienestar. SOLO JSON. Strings max 5 palabras. Calcula métricas reales.',
+      `Perfil: ${prompt}\nResponde exactamente:\n{"score":52,"imc":24.1,"imc_cat":"Normal","grasa_pct":14.2,"grasa_cat":"Saludable","masa_muscular_kg":42.0,"tmb":1650,"kcal_mantenimiento":2145,"cats":{"nutricion":{"score":55,"label":"Nutrición","estado":"Mejorable"},"energia":{"score":60,"label":"Energía","estado":"Estable"},"sueno":{"score":50,"label":"Descanso","estado":"Alterado"},"piel":{"score":65,"label":"Piel & Glow","estado":"Buena"},"composicion":{"score":70,"label":"Composición","estado":"Atlética"},"mental":{"score":58,"label":"Mente","estado":"Moderada"}}}`);
+
+    setLoad('Detectando carencias nutricionales...');
+    const r2=await callAPI('Nutricionista experto. SOLO JSON. Strings max 6 palabras.',
+      `Perfil: ${prompt}\nResponde exactamente:\n{"macro_carencias":[{"macro":"Grasas saludables","nivel":"Bajo","impacto":"Piel seca e inflamación","pct_estimado":50},{"macro":"Proteína total","nivel":"Regular","impacto":"Recuperación muscular lenta","pct_estimado":65}],"micro_carencias":[{"micro":"Omega-3","nivel":"Bajo","sintomas":"Inflamación y piel apagada","fuentes":"Pescado azul y nueces"},{"micro":"Magnesio","nivel":"Deficiente","sintomas":"Sueño fragmentado y estrés","fuentes":"Frutos secos y legumbres"},{"micro":"Vitamina D","nivel":"Moderado","sintomas":"Fatiga y recuperación lenta","fuentes":"Sol y huevos"}]}`);
+
+    setLoad('Generando plan de mejora...');
+    const r3=await callAPI('Coach de bienestar. SOLO JSON sin texto extra. Strings MAX 8 palabras cada uno.',
+      `Perfil: ${prompt}\nJSON exacto (strings cortos):\n{"escenario_neg":"Sin cambios: fatiga, grasa y deterioro en 12 meses.","escenario_pos":"En 60 días: energía, cuerpo y piel transformados.","dolor_puntos":["Fatiga sin mejora con descanso","Cuerpo sin respuesta a esfuerzos","Piel y pelo delatan estado interno","Niebla mental afecta rendimiento"],"vision_puntos":["Energía real al despertar","Reconocerte al espejo de nuevo","Rendir al 100% en todo","Control total de tu bienestar"],"pautas":[{"area":"Nutrición","texto":"Proteína en cada comida."},{"area":"Descanso","texto":"Sin pantallas 1h antes de dormir."},{"area":"Hidratación","texto":"2L agua diarios al despertar."},{"area":"Movimiento","texto":"30 min diarios mínimo."},{"area":"Suplementación","texto":"Tu dieta no cubre micronutrientes esenciales."}],"resumen":"Potencial bloqueado por hábitos corregibles."}`);
+
+    setLoad('Diseñando plan nutricional...');
+    const r4=await callAPI('Nutricionista. SOLO JSON sin texto extra. Strings MAX 6 palabras. Déficit 20% si objetivo es perder peso.',
+      `Perfil: ${prompt}\nJSON exacto (strings cortos):\n{"plan_alimentacion":{"kcal_objetivo":1600,"proteina_g":120,"nota_deficit":"Déficit 20% para perder 0.5kg/semana","comidas":[{"tiempo":"Desayuno","descripcion":"Huevos, avena, sin azúcar","kcal":350},{"tiempo":"Media mañana","descripcion":"Fruta y proteína","kcal":150},{"tiempo":"Almuerzo","descripcion":"Proteína, verdura, carbos moderados","kcal":450},{"tiempo":"Merienda","descripcion":"Yogur o proteína","kcal":150},{"tiempo":"Cena","descripcion":"Proteína y verdura, sin carbos","kcal":350}],"suplementos_recomendados":[{"nombre":"Proteína whey","razon":"Cubre déficit proteico fácilmente","cuando":"Desayuno o post-entreno"},{"nombre":"Vitamina D3+K2","razon":"Déficit universal, energía e inmunidad","cuando":"Con desayuno"},{"nombre":"Omega-3","razon":"Reduce inflamación y mejora piel","cuando":"Con comida principal"},{"nombre":"Magnesio bisglicinato","razon":"Mejora sueño y reduce estrés","cuando":"30 min antes dormir"}]}}`,2000);
+
+    setLoad('Creando plan de ejercicio...');
+    const r5=await callAPI('Entrenador personal. SOLO JSON. Strings MAX 4 palabras.',
+      `Perfil: ${prompt}\nJSON exacto:\n{"plan_ejercicio":[{"dia":"Lunes","tipo":"Fuerza superior","duracion":"45 min","descripcion":"Press y remo"},{"dia":"Martes","tipo":"Cardio suave","duracion":"30 min","descripcion":"Caminata rápida"},{"dia":"Miércoles","tipo":"Fuerza inferior","duracion":"45 min","descripcion":"Sentadilla y zancadas"},{"dia":"Jueves","tipo":"Descanso activo","duracion":"20 min","descripcion":"Yoga suave"},{"dia":"Viernes","tipo":"Full body","duracion":"50 min","descripcion":"Circuito completo"},{"dia":"Sábado","tipo":"Outdoor","duracion":"45 min","descripcion":"Bici o senderismo"},{"dia":"Domingo","tipo":"Descanso","duracion":"-","descripcion":"Recuperación"}]}`,2000);
+
+    const report={...r1,...r2,...r3,...r4,...r5};
+    // safety guards
+    if(!report.cats) report.cats={
+      nutricion:{score:50,label:'Nutrición',estado:'Mejorable'},
+      energia:{score:50,label:'Energía',estado:'Mejorable'},
+      sueno:{score:50,label:'Descanso',estado:'Mejorable'},
+      piel:{score:50,label:'Piel & Glow',estado:'Mejorable'},
+      composicion:{score:50,label:'Composición',estado:'Mejorable'},
+      mental:{score:50,label:'Mente',estado:'Mejorable'}
+    };
+    if(!report.escenario_neg||report.escenario_neg==='undefined') report.escenario_neg='Fatiga crónica, más grasa y menor calidad de vida progresiva.';
+    if(!report.escenario_pos||report.escenario_pos==='undefined') report.escenario_pos='En 60 días: más energía, mejor composición y piel visible.';
+    if(!report.resumen||report.resumen==='undefined') report.resumen='Perfil con potencial claro de mejora.';
+    if(!report.imc) report.imc=0;
+    if(!report.imc_cat) report.imc_cat='Sin datos';
+    if(!report.tmb) report.tmb=0;
+    if(!report.kcal_mantenimiento) report.kcal_mantenimiento=0;
+    if(!report.macro_carencias) report.macro_carencias=[];
+    if(!report.micro_carencias) report.micro_carencias=[];
+    if(!report.pautas) report.pautas=[];
+    if(!report.plan_alimentacion) report.plan_alimentacion={kcal_objetivo:0,proteina_g:0,comidas:[]};
+    if(!report.plan_ejercicio) report.plan_ejercicio=[];
+    const entry={nombre,telefono,date:Date.now(),report,prompt_original:prompt};
+    await saveLead(entry);
+    CUR_REPORT=entry;
+    renderReport(entry);
+  }catch(e){
+    document.getElementById('report-body').innerHTML=`
+      <div style="padding:32px 20px;text-align:center">
+        <div style="color:var(--red);font-size:15px;margin-bottom:10px">Error al generar el análisis</div>
+        <div style="font-size:12px;color:var(--text2);background:#111;padding:12px;border-radius:8px;text-align:left;word-break:break-all;max-height:160px;overflow:auto">${e.message}</div>
+        <div style="height:20px"></div>
+        <button class="btn btn-ghost btn-sm" onclick="backToDash()" style="margin:0 auto">Volver</button>
+      </div>`;
+  }
+}
+
+// ─── RADAR ────────────────────────────────────────────
+function radarSVG(cats){
+  const vals=Object.values(cats),keys=Object.keys(cats),n=vals.length;
+  const W=420,H=420,cx=210,cy=210,r=100,labelR=r+65;
+  const pts=vals.map((c,i)=>{
+    const a=(i/n)*Math.PI*2-Math.PI/2,fr=c.score/100;
+    return{x:cx+r*fr*Math.cos(a),y:cy+r*fr*Math.sin(a),ax:cx+r*Math.cos(a),ay:cy+r*Math.sin(a),
+      lx:cx+labelR*Math.cos(a),ly:cy+labelR*Math.sin(a),score:c.score,label:c.label,icon:ICONS[keys[i]]||'◎',col:sc(c.score)};
+  });
+  const gp=lv=>vals.map((_,i)=>{const a=(i/n)*Math.PI*2-Math.PI/2;return`${cx+r*(lv/100)*Math.cos(a)},${cy+r*(lv/100)*Math.sin(a)}`}).join(' ');
+  const poly=pts.map(p=>`${p.x},${p.y}`).join(' ');
+  const lines=pts.map(p=>`<line x1="${cx}" y1="${cy}" x2="${p.ax}" y2="${p.ay}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>`).join('');
+  const glbls=[25,50,75].map(lv=>`<text x="${cx+6}" y="${cy-r*(lv/100)+4}" fill="rgba(255,255,255,0.15)" font-size="8" font-family="-apple-system,sans-serif">${lv}</text>`).join('');
+  const dots=pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="5" fill="${p.col}" opacity=".9"/><circle cx="${p.x}" cy="${p.y}" r="2.5" fill="#050505"/><circle cx="${p.x}" cy="${p.y}" r="1.2" fill="${p.col}"/>`).join('');
+  const labels=pts.map(p=>{
+    const ta=Math.abs(p.lx-cx)<15?'middle':p.lx<cx?'end':'start';
+    return`<text x="${p.lx}" y="${p.ly-12}" text-anchor="${ta}" font-size="15">${p.icon}</text>
+    <text x="${p.lx}" y="${p.ly+4}" text-anchor="${ta}" fill="rgba(240,237,232,0.65)" font-size="10" font-family="-apple-system,sans-serif">${p.label}</text>
+    <text x="${p.lx}" y="${p.ly+18}" text-anchor="${ta}" fill="${p.col}" font-size="14" font-family="-apple-system,sans-serif" font-weight="700">${p.score}</text>`;
+  }).join('');
+  return`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:420px;display:block;margin:0 auto">
+    <defs><radialGradient id="rg" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="rgba(201,168,76,0.1)"/><stop offset="100%" stop-color="rgba(201,168,76,0)"/></radialGradient></defs>
+    <polygon points="${gp(100)}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+    <polygon points="${gp(75)}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="3,3"/>
+    <polygon points="${gp(50)}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="3,3"/>
+    <polygon points="${gp(25)}" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="3,3"/>
+    ${glbls}${lines}
+    <polygon points="${poly}" fill="url(#rg)" stroke="rgba(201,168,76,0.7)" stroke-width="1.8"/>
+    ${dots}${labels}
+  </svg>`;
+}
+
+// ─── RENDER REPORT ────────────────────────────────────
+function renderReport(entry){
+  const r=entry.report,col=sc(r.score);
+  const circ=2*Math.PI*52,dash=(r.score/100)*circ;
+  const cats=Object.values(r.cats),catKeys=Object.keys(r.cats);
+  const scoreLbl=r.score>=70?'ÓPTIMO':r.score>=45?'MEJORABLE':'CRÍTICO';
+  const html=`
+  <div class="report-hero">
+    <div style="font-size:10px;letter-spacing:3px;color:var(--text2);text-transform:uppercase;margin-bottom:20px">${fmt(entry.date)}</div>
+    <div style="font-size:21px;font-weight:600;margin-bottom:2px">${entry.nombre}</div>
+    ${entry.telefono?`<div style="font-size:12px;color:var(--text2);margin-bottom:20px">${entry.telefono}</div>`:'<div style="height:16px"></div>'}
+    <div class="score-circle">
+      <svg viewBox="0 0 120 120" width="150" height="150">
+        <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="10"/>
+        <circle cx="60" cy="60" r="52" fill="none" stroke="${col}" stroke-width="10" stroke-dasharray="${dash} ${circ}" stroke-linecap="round" transform="rotate(-90 60 60)" style="transition:stroke-dasharray 1.8s cubic-bezier(.4,0,.2,1)"/>
+      </svg>
+      <div class="score-inner">
+        <div style="font-size:10px;letter-spacing:2px;color:var(--text2)">SCORE</div>
+        <div style="font-size:48px;font-weight:700;letter-spacing:-2px;color:${col};line-height:1">${r.score}</div>
+        <div style="font-size:9px;letter-spacing:2px;color:${col};font-weight:600">${scoreLbl}</div>
+      </div>
+    </div>
+    ${r.resumen?`<div style="font-size:13px;color:var(--text2);margin-top:16px;font-style:italic;padding:0 28px;line-height:1.6">"${r.resumen}"</div>`:''}
+  </div>
+  <div style="display:flex;justify-content:center;padding:8px 0 16px">${radarSVG(r.cats)}</div>
+  <div style="padding:0 20px 4px">
+    ${(!r._fase||r._fase===1)?`
+    <div style="padding:16px;background:rgba(201,168,76,.06);border:1px solid var(--border3);border-radius:var(--r2);margin-bottom:16px">
+      <div style="font-size:13px;font-weight:500;color:var(--gold);margin-bottom:6px">✦ Análisis base completado</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">Scores y métricas calculados. Cuando estés listo con el cliente, genera el diagnóstico completo con proyección y planes personalizados.</div>
+      <button class="btn btn-gold" id="btn-diagnostico" onclick="generarDiagnostico()" style="font-size:13px">⚡ Generar diagnóstico completo</button>
+    </div>`:''}
+    <div class="glass section">
+      <div class="sec-lbl">Ficha del cliente</div>
+      <div class="mrow"><span style="color:var(--text2)">Nombre</span><span style="font-weight:500">${entry.nombre}</span></div>
+      ${entry.telefono?`<div class="mrow"><span style="color:var(--text2)">Teléfono</span><span>${entry.telefono}</span></div>`:''}
+      <div class="mrow"><span style="color:var(--text2)">Fecha análisis</span><span>${fmt(entry.date)}</span></div>
+      ${r.imc?`<div class="mrow"><span style="color:var(--text2)">IMC calculado</span><span>${r.imc} — ${r.imc_cat}</span></div>`:''}
+      ${r.grasa_pct?`<div class="mrow"><span style="color:var(--text2)">Grasa corporal</span><span style="color:var(--orange)">${r.grasa_pct}% — ${r.grasa_cat}</span></div>`:''}
+      ${r.masa_muscular_kg?`<div class="mrow"><span style="color:var(--text2)">Masa muscular est.</span><span>${r.masa_muscular_kg} kg</span></div>`:''}
+      ${r.tmb?`<div class="mrow"><span style="color:var(--text2)">Metabolismo basal</span><span>${r.tmb} kcal</span></div>`:''}
+      ${r.kcal_mantenimiento?`<div class="mrow"><span style="color:var(--text2)">Calorías mantenimiento</span><span>${r.kcal_mantenimiento} kcal</span></div>`:''}
+      ${r.resumen?`<div style="margin-top:12px;padding:12px;background:rgba(201,168,76,.04);border:1px solid var(--border3);border-radius:8px;font-size:13px;color:var(--text2);line-height:1.6;font-style:italic">"${r.resumen}"</div>`:''}
+    </div>
+  </div>
+  <div class="cat-grid">
+    ${cats.map((c,i)=>`<div class="cat-card">
+      <div style="font-size:20px;margin-bottom:6px">${ICONS[catKeys[i]]||'◎'}</div>
+      <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text2);margin-bottom:4px">${c.label}</div>
+      <div style="font-size:26px;font-weight:600;color:${sc(c.score)}">${c.score}</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px">${c.estado}</div>
+      <div class="bar"><div class="bar-fill" style="width:${c.score}%;background:${sc(c.score)}"></div></div>
+    </div>`).join('')}
+  </div>
+  <div style="padding:0 20px">
+    <div class="glass section">
+      <div class="sec-lbl">Métricas corporales</div>
+      <div class="mrow"><span style="color:var(--text2)">IMC</span><span style="font-weight:500">${r.imc} — ${r.imc_cat}</span></div>
+      ${r.grasa_pct?`<div class="mrow"><span style="color:var(--text2)">Grasa corporal</span><span style="font-weight:500;color:var(--orange)">${r.grasa_pct}% — ${r.grasa_cat}</span></div>`:''}
+      ${r.masa_muscular_kg?`<div class="mrow"><span style="color:var(--text2)">Masa muscular est.</span><span style="font-weight:500">${r.masa_muscular_kg} kg</span></div>`:''}
+      <div class="mrow"><span style="color:var(--text2)">Metabolismo basal</span><span style="font-weight:500">${r.tmb} kcal</span></div>
+      <div class="mrow"><span style="color:var(--text2)">Calorías mantenimiento</span><span style="font-weight:500">${r.kcal_mantenimiento} kcal</span></div>
+    </div>
+    ${r.macro_carencias?.length?`<div class="glass section">
+      <div class="sec-lbl">Carencias de macronutrientes</div>
+      ${r.macro_carencias.map(m=>`<div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:14px;font-weight:500">${m.macro}</span>
+          <span style="font-size:11px;color:var(--red)">${m.nivel}</span>
+        </div>
+        <div class="bar" style="margin-bottom:6px"><div class="bar-fill" style="width:${m.pct_estimado||50}%;background:var(--red)"></div></div>
+        <div style="font-size:12px;color:var(--text2)">${m.impacto}</div>
+      </div>`).join('')}
+    </div>`:''}
+    ${r.micro_carencias?.length?`<div class="glass section">
+      <div class="sec-lbl">Deficiencias detectadas</div>
+      <div style="margin-bottom:14px">${r.micro_carencias.map(m=>`<span class="dtag">⚠ ${m.micro}</span>`).join('')}</div>
+      ${r.micro_carencias.map(m=>`<div style="padding:11px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:14px;font-weight:500">${m.micro}</span>
+          <span style="font-size:11px;color:var(--red)">${m.nivel}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:2px">${m.sintomas}</div>
+        <div style="font-size:11px;color:var(--text3)">Fuentes: ${m.fuentes}</div>
+      </div>`).join('')}
+    </div>`:''}
+    <div class="glass section">
+      <div class="sec-lbl">Tu proyección</div>
+      ${r.dolor_puntos?.length?`
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;letter-spacing:1.5px;color:var(--red);text-transform:uppercase;margin-bottom:10px;font-weight:600">⚡ Tu situación actual</div>
+        ${r.dolor_puntos.map(d=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--red);font-size:16px;margin-top:-1px">✗</span>
+          <span style="font-size:13px;line-height:1.5;color:rgba(255,150,150,.9)">${d}</span>
+        </div>`).join('')}
+      </div>`:''}
+      <div class="scenario sbad" style="margin-bottom:16px">
+        <div style="font-size:10px;letter-spacing:2px;color:var(--red);text-transform:uppercase;margin-bottom:8px;font-weight:500">Si no cambias nada...</div>
+        <div style="font-size:13px;line-height:1.7;color:rgba(255,150,150,.9)">${r.escenario_neg||'Sin cambios, el deterioro será progresivo en los próximos meses.'}</div>
+      </div>
+      ${r.vision_puntos?.length?`
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;letter-spacing:1.5px;color:var(--green);text-transform:uppercase;margin-bottom:10px;font-weight:600">✦ Tu potencial real</div>
+        ${r.vision_puntos.map(v=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--green);font-size:16px;margin-top:-1px">✓</span>
+          <span style="font-size:13px;line-height:1.5;color:rgba(150,255,180,.9)">${v}</span>
+        </div>`).join('')}
+      </div>`:''}
+      <div class="scenario sgood">
+        <div style="font-size:10px;letter-spacing:2px;color:var(--green);text-transform:uppercase;margin-bottom:8px;font-weight:500">Con el programa correcto...</div>
+        <div style="font-size:13px;line-height:1.7;color:rgba(150,255,180,.9)">${r.escenario_pos||'Con los cambios adecuados, en 60 días notarás mejoras reales en energía y composición.'}</div>
+      </div>
+    </div>
+    ${r.pautas?.length?`<div class="glass section">
+      <div class="sec-lbl">Plan de mejora</div>
+      ${r.pautas.map(p=>`<div class="pauta-item">
+        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:5px">${p.area}</div>
+        <div style="font-size:13px;line-height:1.6">${p.texto}</div>
+      </div>`).join('')}
+    </div>`:''}
+    ${r.plan_alimentacion?.comidas?.length?`<div class="glass section">
+      <div class="sec-lbl">Plan nutricional ejemplo</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Objetivo: <span style="color:var(--gold);font-weight:500">${r.plan_alimentacion.kcal_objetivo} kcal</span> · Proteína: <span style="color:var(--gold);font-weight:500">${r.plan_alimentacion.proteina_g}g/día</span></div>
+      ${r.plan_alimentacion.nota_deficit?`<div style="font-size:11px;color:var(--orange);margin-bottom:14px;padding:8px 10px;background:rgba(255,159,10,.06);border-radius:6px;border:1px solid rgba(255,159,10,.2)">📉 ${r.plan_alimentacion.nota_deficit}</div>`:''}
+      ${r.plan_alimentacion.comidas.map(c=>`<div class="plan-box">
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:5px">${c.tiempo}</div>
+        <div style="font-size:13px;margin-bottom:3px">${c.descripcion}</div>
+        <div style="font-size:11px;color:var(--text2)">${c.kcal} kcal</div>
+      </div>`).join('')}
+      ${r.plan_alimentacion.suplementos_recomendados?.length?`
+      <div style="margin-top:16px">
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border3)">💊 Suplementación esencial detectada</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6">Tu dieta actual no cubre todos los micronutrientes que tu cuerpo necesita para funcionar al óptimo. Estos son los que marcarían una diferencia inmediata:</div>
+        ${r.plan_alimentacion.suplementos_recomendados.map(s=>`<div style="padding:12px;background:rgba(201,168,76,.04);border:1px solid var(--border3);border-radius:10px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+            <span style="font-size:14px;font-weight:500;color:var(--gold)">${s.nombre}</span>
+            <span style="font-size:11px;color:var(--text2)">${s.cuando}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.5">${s.razon}</div>
+        </div>`).join('')}
+        <div style="margin-top:12px;padding:14px;background:rgba(48,209,88,.06);border:1px solid rgba(48,209,88,.2);border-radius:10px">
+          <div style="font-size:12px;color:var(--green);font-weight:500;margin-bottom:4px">✦ La buena noticia</div>
+          <div style="font-size:12px;color:rgba(150,255,180,.85);line-height:1.6">Existe un programa nutricional que ya incluye todos estos nutrientes en las proporciones exactas que necesitas, de forma sencilla y sin tener que gestionar múltiples suplementos por separado.</div>
+        </div>
+      </div>`:''}
+    </div>`:''}
+    ${r.plan_ejercicio?.length?`<div class="glass section">
+      <div class="sec-lbl">Plan de ejercicio semanal</div>
+      ${r.plan_ejercicio.map(d=>`<div class="mrow" style="align-items:flex-start;gap:12px">
+        <span style="min-width:72px;color:var(--gold);font-size:11px;letter-spacing:1px;text-transform:uppercase;padding-top:2px">${d.dia}</span>
+        <div style="flex:1"><div style="font-size:13px;font-weight:500;margin-bottom:2px">${d.tipo}${d.duracion&&d.duracion!=='-'?' · '+d.duracion:''}</div>
+        <div style="font-size:12px;color:var(--text2)">${d.descripcion}</div></div>
+      </div>`).join('')}
+    </div>`:''}
+    <div class="glass section">
+      <div class="sec-lbl">Compartir informe</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <button class="btn btn-gold" id="btn-open-tab" style="font-size:13px">🌐 Ver en navegador</button>
+        <button class="btn btn-ghost" id="btn-share-wa" style="font-size:13px">📲 Enviar por WA</button>
+      </div>
+      <button class="btn btn-ghost" id="btn-show-qr" style="font-size:13px;margin-bottom:14px">📷 Generar código QR</button>
+      <div id="qr-wrap" style="display:none;text-align:center;padding:16px 0">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Escanea con el móvil del cliente</div>
+        <div id="qr-canvas"></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:10px">El cliente verá su informe completo</div>
+      </div>
+    </div>
+    <button class="btn btn-ghost" id="btn-download" style="font-size:13px;margin-bottom:30px">⬇ Descargar HTML</button>
+  </div>`;
+  document.getElementById('report-body').innerHTML=html;
+  // attach events after DOM update
+  requestAnimationFrame(()=>{
+    const map={
+      'btn-open-tab': ()=>doOpenTab(),
+      'btn-share-wa': ()=>doShareWA(),
+      'btn-show-qr':  ()=>doShowQR(),
+      'btn-download': ()=>doDownload()
+    };
+    Object.entries(map).forEach(([id,fn])=>{
+      const el=document.getElementById(id);
+      if(el) el.onclick=fn;
+    });
+  });
+}
+
+// ─── SHARE / EXPORT ───────────────────────────────────
+function buildHTML(){
+  const r=CUR_REPORT;if(!r)return'';
+  const rp=r.report,col=rp.score>=70?'#30D158':rp.score>=45?'#FF9F0A':'#FF453A';
+  const circ=2*Math.PI*52,dash=(rp.score/100)*circ;
+  const cats=Object.values(rp.cats),catKeys=Object.keys(rp.cats);
+  function scc(s){return s>=70?'#30D158':s>=45?'#FF9F0A':'#FF453A'}
+  function ri(cats){
+    const vals=Object.values(cats),keys=Object.keys(cats),n=vals.length;
+    const W=420,H=420,cx=210,cy=210,rv=100,lR=rv+65;
+    const pts=vals.map((c,i)=>{const a=(i/n)*Math.PI*2-Math.PI/2,fr=c.score/100;return{x:cx+rv*fr*Math.cos(a),y:cy+rv*fr*Math.sin(a),ax:cx+rv*Math.cos(a),ay:cy+rv*Math.sin(a),lx:cx+lR*Math.cos(a),ly:cy+lR*Math.sin(a),score:c.score,label:c.label,icon:ICONS[keys[i]]||'◎',col:scc(c.score)}});
+    const gp=lv=>vals.map((_,i)=>{const a=(i/n)*Math.PI*2-Math.PI/2;return`${cx+rv*(lv/100)*Math.cos(a)},${cy+rv*(lv/100)*Math.sin(a)}`}).join(' ');
+    const poly=pts.map(p=>`${p.x},${p.y}`).join(' ');
+    const lines=pts.map(p=>`<line x1="${cx}" y1="${cy}" x2="${p.ax}" y2="${p.ay}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>`).join('');
+    const dots=pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="5" fill="${p.col}" opacity=".9"/><circle cx="${p.x}" cy="${p.y}" r="2.5" fill="#050505"/>`).join('');
+    const labels=pts.map(p=>{const ta=Math.abs(p.lx-cx)<15?'middle':p.lx<cx?'end':'start';return`<text x="${p.lx}" y="${p.ly-12}" text-anchor="${ta}" font-size="15">${p.icon}</text><text x="${p.lx}" y="${p.ly+4}" text-anchor="${ta}" fill="rgba(240,237,232,0.65)" font-size="10" font-family="-apple-system,sans-serif">${p.label}</text><text x="${p.lx}" y="${p.ly+18}" text-anchor="${ta}" fill="${p.col}" font-size="14" font-family="-apple-system,sans-serif" font-weight="700">${p.score}</text>`;}).join('');
+    return`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-width:380px;display:block;margin:0 auto"><defs><radialGradient id="rg2" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="rgba(201,168,76,0.1)"/><stop offset="100%" stop-color="rgba(201,168,76,0)"/></radialGradient></defs><polygon points="${gp(100)}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/><polygon points="${gp(75)}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="3,3"/><polygon points="${gp(50)}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="3,3"/><polygon points="${gp(25)}" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="3,3"/>${lines}<polygon points="${poly}" fill="url(#rg2)" stroke="rgba(201,168,76,0.7)" stroke-width="1.8"/>${dots}${labels}</svg>`;
+  }
+  return`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VitalScan — ${r.nombre}</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#050505;color:#F5F2EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;padding:0 0 60px}.hero{background:radial-gradient(ellipse at 50% 0%,rgba(201,168,76,.14) 0%,transparent 65%);padding:40px 24px 28px;text-align:center}.sw{position:relative;width:140px;height:140px;margin:0 auto 20px}.sw svg{position:absolute}.si{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}.glass{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:20px;margin:0 16px 14px}.sl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#C9A84C;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid rgba(201,168,76,.2)}.row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px}.row:last-child{border:none}.cg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 16px 14px}.cc{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px;text-align:center}.bar{height:3px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:8px;overflow:hidden}.bf{height:100%;border-radius:2px}.scn{border-radius:12px;padding:16px;margin-bottom:10px}.sbad{background:rgba(255,69,58,.07);border:1px solid rgba(255,69,58,.2)}.sgood{background:rgba(48,209,88,.07);border:1px solid rgba(48,209,88,.2)}.dtag{display:inline-flex;padding:5px 11px;background:rgba(255,69,58,.08);border:1px solid rgba(255,69,58,.2);border-radius:20px;font-size:12px;color:#FF6B63;margin:3px}.pi{padding:14px;background:rgba(255,255,255,0.02);border-radius:10px;border-left:2px solid #C9A84C;margin-bottom:8px}.pb{padding:12px 14px;background:rgba(255,255,255,0.02);border-radius:10px;margin-bottom:8px}.ft{text-align:center;padding:30px;color:#4A453F;font-size:11px;letter-spacing:2px}</style></head><body>
+<div class="hero"><div style="font-size:10px;letter-spacing:3px;color:#8A8075;text-transform:uppercase;margin-bottom:18px">INFORME · ${fmt(r.date)}</div><div style="font-size:21px;font-weight:600;margin-bottom:14px">${r.nombre}</div><div class="sw"><svg viewBox="0 0 120 120" width="140" height="140"><circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="10"/><circle cx="60" cy="60" r="52" fill="none" stroke="${col}" stroke-width="10" stroke-dasharray="${dash} ${circ}" stroke-linecap="round" transform="rotate(-90 60 60)"/></svg><div class="si"><div style="font-size:10px;letter-spacing:2px;color:#8A8075">SCORE</div><div style="font-size:44px;font-weight:700;color:${col};letter-spacing:-2px;line-height:1">${rp.score}</div><div style="font-size:9px;letter-spacing:2px;color:${col};font-weight:600">${rp.score>=70?'ÓPTIMO':rp.score>=45?'MEJORABLE':'CRÍTICO'}</div></div></div>${rp.resumen?`<div style="font-size:13px;color:#8A8075;font-style:italic;padding:0 20px">"${rp.resumen}"</div>`:''}</div>
+<div style="display:flex;justify-content:center;padding:10px 16px 16px">${ri(rp.cats)}</div>
+<div class="cg">${cats.map((c,i)=>`<div class="cc"><div style="font-size:20px;margin-bottom:5px">${ICONS[catKeys[i]]||'◎'}</div><div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#8A8075;margin-bottom:3px">${c.label}</div><div style="font-size:24px;font-weight:600;color:${scc(c.score)}">${c.score}</div><div style="font-size:11px;color:#8A8075">${c.estado}</div><div class="bar"><div class="bf" style="width:${c.score}%;background:${scc(c.score)}"></div></div></div>`).join('')}</div>
+<div class="glass"><div class="sl">Métricas corporales</div><div class="row"><span style="color:#8A8075">IMC</span><span>${rp.imc} — ${rp.imc_cat}</span></div>${rp.grasa_pct?`<div class="row"><span style="color:#8A8075">Grasa corporal</span><span style="color:#FF9F0A">${rp.grasa_pct}% — ${rp.grasa_cat}</span></div>`:''}<div class="row"><span style="color:#8A8075">Metabolismo basal</span><span>${rp.tmb} kcal</span></div><div class="row"><span style="color:#8A8075">Calorías mantenimiento</span><span>${rp.kcal_mantenimiento} kcal</span></div></div>
+${rp.micro_carencias?.length?`<div class="glass"><div class="sl">Deficiencias detectadas</div><div style="margin-bottom:12px">${rp.micro_carencias.map(m=>`<span class="dtag">⚠ ${m.micro}</span>`).join('')}</div>${rp.micro_carencias.map(m=>`<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06)"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:13px;font-weight:500">${m.micro}</span><span style="font-size:11px;color:#FF453A">${m.nivel}</span></div><div style="font-size:12px;color:#8A8075">${m.sintomas}</div></div>`).join('')}</div>`:''}
+<div style="padding:0 16px"><div class="scn sbad"><div style="font-size:10px;letter-spacing:2px;color:#FF453A;text-transform:uppercase;margin-bottom:8px;font-weight:500">⚡ Si sigues igual...</div><div style="font-size:13px;line-height:1.7;color:rgba(255,150,150,.9)">${rp.escenario_neg||'Sin cambios, el deterioro será progresivo.'}</div></div><div class="scn sgood"><div style="font-size:10px;letter-spacing:2px;color:#30D158;text-transform:uppercase;margin-bottom:8px;font-weight:500">✦ Si cambias ahora...</div><div style="font-size:13px;line-height:1.7;color:rgba(150,255,180,.9)">${rp.escenario_pos||'Con los cambios adecuados, en 60 días notarás mejoras reales.'}</div></div></div>
+${rp.pautas?.length?`<div class="glass"><div class="sl">Plan de mejora</div>${rp.pautas.map(p=>`<div class="pi"><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#C9A84C;margin-bottom:5px">${p.area}</div><div style="font-size:13px;line-height:1.6">${p.texto}</div></div>`).join('')}</div>`:''}
+${rp.plan_alimentacion?.comidas?.length?`<div class="glass"><div class="sl">Plan nutricional</div><div style="font-size:12px;color:#8A8075;margin-bottom:14px">Objetivo: <b style="color:#C9A84C">${rp.plan_alimentacion.kcal_objetivo} kcal</b> · Proteína: <b style="color:#C9A84C">${rp.plan_alimentacion.proteina_g}g/día</b></div>${rp.plan_alimentacion.comidas.map(c=>`<div class="pb"><div style="font-size:10px;letter-spacing:1.5px;color:#C9A84C;text-transform:uppercase;margin-bottom:4px">${c.tiempo}</div><div style="font-size:13px;margin-bottom:3px">${c.descripcion}</div><div style="font-size:11px;color:#8A8075">${c.kcal} kcal</div></div>`).join('')}</div>`:''}
+${rp.plan_ejercicio?.length?`<div class="glass"><div class="sl">Plan de ejercicio</div>${rp.plan_ejercicio.map(d=>`<div class="row" style="align-items:flex-start;gap:10px"><span style="min-width:72px;color:#C9A84C;font-size:11px;letter-spacing:1px;text-transform:uppercase;padding-top:2px">${d.dia}</span><div style="flex:1"><div style="font-size:13px;font-weight:500;margin-bottom:2px">${d.tipo}${d.duracion&&d.duracion!=='-'?' · '+d.duracion:''}</div><div style="font-size:12px;color:#8A8075">${d.descripcion}</div></div></div>`).join('')}</div>`:''}
+<div class="ft">VITALSCAN PRO · WELLNESS INTELLIGENCE</div></body></html>`;
+}
+
+async function publishReport(){
+  const h=buildHTML();if(!h)return null;
+  try{
+    const res=await sbInsert('public_reports',{html:h});
+    if(!res||!res[0])return null;
+    const id=res[0].id;
+    // Use hash URL — works without server-side redirects
+    return `https://beamish-sprinkles-74c55f.netlify.app/#report/${id}`;
+  }catch(e){
+    console.error('publishReport error:',e);
+    return null;
+  }
+}
+function downloadHTML(){
+  const r=CUR_REPORT;if(!r)return;
+  const h=buildHTML();if(!h)return;
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([h],{type:'text/html'}));
+  a.download=`VitalScan_${r.nombre.replace(/\s+/g,'_')}.html`;a.click();
+}
+function showQR(){
+  const wrap=document.getElementById('qr-wrap');if(!wrap)return;
+  wrap.style.display=wrap.style.display==='none'?'block':'none';
+  if(wrap.style.display==='none')return;
+  loadQRLib().then(()=>{
+    const h=buildHTML();
+    new Promise(res=>{const fr=new FileReader();fr.onload=e=>res(e.target.result);fr.readAsDataURL(new Blob([h],{type:'text/html'}));})
+    .then(dataUrl=>{
+      const qd=document.getElementById('qr-canvas');if(!qd)return;
+      qd.innerHTML='';
+      new QRCode(qd,{text:dataUrl,width:200,height:200,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.L});
+    });
+  });
+}
+function shareWA(){
+  const r=CUR_REPORT;if(!r)return;
+  const rp=r.report;
+  const msg=`🌿 *VITALSCAN PRO*\n\n👤 *${r.nombre}*\n📅 ${fmt(r.date)}\n\n⚡ *Score: ${rp.score}/100 — ${rp.score>=70?'ÓPTIMO':rp.score>=45?'MEJORABLE':'CRÍTICO'}*\n\n❌ *Si sigues igual...*\n${rp.escenario_neg}\n\n✅ *Si cambias ahora...*\n${rp.escenario_pos}\n\n_VitalScan Pro · Wellness Intelligence_`;
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+}
+function loadQRLib(){
+  return new Promise(res=>{
+    if(window.QRCode){res();return}
+    const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';s.onload=res;document.head.appendChild(s);
+  });
+}
+
+// aliases para compatibilidad con versiones anteriores
+const doOpenTab=async function(){
+  const btn=document.getElementById('btn-open-tab');
+  if(btn){btn.textContent='⏳ Guardando...';btn.disabled=true;}
+  try{
+    const url=await publishReport();
+    if(btn){btn.textContent='🌐 Ver en navegador';btn.disabled=false;}
+    if(url){ window.open(url,'_blank'); }
+    else{window.open(URL.createObjectURL(new Blob([buildHTML()],{type:'text/html'})),'_blank');}
+  }catch(e){
+    if(btn){btn.textContent='🌐 Ver en navegador';btn.disabled=false;}
+    window.open(URL.createObjectURL(new Blob([buildHTML()],{type:'text/html'})),'_blank');
+  }
+};
+const doShareWA=async function(){
+  const btn=document.getElementById('btn-share-wa');
+  if(btn){btn.textContent='⏳ Generando...';btn.disabled=true;}
+  let url=null;
+  try{url=await publishReport();}catch(e){}
+  if(btn){btn.textContent='📲 Enviar por WA';btn.disabled=false;}
+  const r=CUR_REPORT;if(!r)return;
+  const rp=r.report;
+  const linkLine=url?`\n\n🔗 Ver informe:\n${url}`:'\n\n_(Adjunta el HTML descargado)_';
+  const msg=`🌿 *VITALSCAN PRO*\n\n👤 *${r.nombre}*\n📅 ${fmt(r.date)}\n\n⚡ *Score: ${rp.score}/100 — ${rp.score>=70?'ÓPTIMO':rp.score>=45?'MEJORABLE':'CRÍTICO'}*\n\n❌ *Si no cambias nada...*\n${rp.escenario_neg}\n\n✅ *Con el programa correcto...*\n${rp.escenario_pos}${linkLine}\n\n_VitalScan Pro · Wellness Intelligence_`;
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+};
+const doShowQR=function(){
+  const wrap=document.getElementById('qr-wrap');if(!wrap)return;
+  wrap.style.display=wrap.style.display==='none'?'block':'none';
+  if(wrap.style.display==='none')return;
+  loadQRLib().then(()=>{
+    const h=buildHTML();
+    const fr=new FileReader();
+    fr.onload=e=>{
+      const qd=document.getElementById('qr-canvas');if(!qd)return;
+      qd.innerHTML='';
+      new QRCode(qd,{text:e.target.result,width:200,height:200,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.L});
+    };
+    fr.readAsDataURL(new Blob([h],{type:'text/html'}));
+  });
+};
+const doDownload=function(){
+  const r=CUR_REPORT;if(!r)return;
+  const h=buildHTML();if(!h)return;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([h],{type:'text/html'}));
+  a.download=`VitalScan_${r.nombre.replace(/\s+/g,'_')}.html`;
+  a.click();
+};
+// ─── INIT ─────────────────────────────────────────────
+(async()=>{
+  const hash=window.location.hash;
+  const m=hash.match(/^#report\/([a-f0-9-]{36})/);
+  if(m){
+    document.querySelectorAll('.screen').forEach(s=>{s.style.display='none';s.classList.remove('active');});
+    const loader=document.createElement('div');
+    loader.style.cssText='position:fixed;inset:0;background:#050505;display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:16px';
+    loader.innerHTML='<div style="width:44px;height:44px;border:2px solid rgba(255,255,255,0.06);border-top-color:#C9A84C;border-radius:50%;animation:spin .8s linear infinite"></div><div style="font-size:11px;letter-spacing:3px;color:#8A8075;text-transform:uppercase">Cargando informe...</div>';
+    document.body.appendChild(loader);
+    try{
+      const data=await sbGet('public_reports','id=eq.'+m[1]);
+      if(data&&data[0]){
+        document.open();document.write(data[0].html);document.close();
+      }else{
+        loader.innerHTML='<div style="text-align:center;color:#8A8075;font-family:-apple-system,sans-serif;padding:40px"><div style="font-size:40px;margin-bottom:16px">◎</div><div>Informe no encontrado</div></div>';
+      }
+    }catch(e){
+      loader.innerHTML='<div style="color:#FF453A;font-family:-apple-system,sans-serif;text-align:center;padding:40px">Error: '+e.message+'</div>';
+    }
+    return;
+  }
+  try{await sbGet('users','limit=1');}catch(e){console.warn('Supabase:',e);}
+})();
+</script>
+</body>
+</html>
