@@ -1,33 +1,58 @@
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
+const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
+const MAX_TOKENS = 2500;
+const MAX_TEXT_CHARS = 6000;
 
-  const key = process.env.ANTHROPIC_KEY;
+function trimText(value, limit = MAX_TEXT_CHARS) {
+  return String(value || '').slice(0, limit);
+}
 
-  if (req.method === 'GET') {
-    return res.status(200).json({hasKey: !!key, keyStart: key ? key.substring(0,12)+'...' : 'EMPTY'});
+function normalizeMessages(messages) {
+  if (!Array.isArray(messages)) return [];
+  return messages.slice(0, 6).map((message) => ({
+    role: message.role === 'assistant' ? 'assistant' : 'user',
+    content: trimText(message.content),
+  }));
+}
+
+module.exports = async function handler(req, res) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  if (req.method !== 'POST') return res.status(405).end();
+  const apiKey = process.env.ANTHROPIC_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'Missing ANTHROPIC_KEY environment variable' });
+  }
 
   try {
-    let body = req.body;
-    if (typeof body === 'string') body = JSON.parse(body);
+    const body = req.body || {};
+    const payload = {
+      model: trimText(body.model || DEFAULT_MODEL, 80),
+      max_tokens: Math.min(Number(body.max_tokens) || 1500, MAX_TOKENS),
+      system: trimText(body.system, 3000),
+      messages: normalizeMessages(body.messages),
+    };
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    if (!payload.messages.length) {
+      return res.status(400).json({ error: 'Missing messages' });
+    }
+
+    const upstream = await fetch(ANTHROPIC_URL, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01'
+        'content-type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        'x-api-key': apiKey,
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(payload),
     });
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch(e) {
-    res.status(500).json({error: e.message, stack: e.stack});
+
+    const text = await upstream.text();
+    res.setHeader('content-type', 'application/json; charset=utf-8');
+    return res.status(upstream.status).send(text);
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Proxy error' });
   }
-}
+};

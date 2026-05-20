@@ -339,12 +339,72 @@ const MODEL='claude-haiku-4-5-20251001';
 const ICONS={nutricion:'🥗',energia:'⚡',sueno:'🌙',piel:'✨',composicion:'💪',mental:'🧠'};
 const ADMIN_EMAIL='admin@vitalscan.pro';
 const ADMIN_PASS='VitalAdmin2025!';
+const INPUT_LIMIT=800;
+const DEMO_MODE=location.protocol==='file:'||new URLSearchParams(location.search).has('demo');
 
 // ─── SUPABASE ─────────────────────────────────────────
 const SB_URL='https://yjocikkyjqcczubzstsj.supabase.co';
 const SB_KEY='sb_publishable_1s5mnGJNisIS8vsSmuf8iQ_pOW8qZIt';
+let MEM_DB={users:[],leads:[],public_reports:[]};
 
+function localDB(){
+  try{
+    MEM_DB=JSON.parse(localStorage.getItem('vitalscan_demo_db'))||MEM_DB;
+    return MEM_DB;
+  }catch(e){
+    return MEM_DB;
+  }
+}
+function saveLocalDB(db){
+  MEM_DB=db;
+  try{localStorage.setItem('vitalscan_demo_db',JSON.stringify(db));}catch(e){}
+}
+function localId(){
+  return window.crypto?.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+    const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);
+  });
+}
+function applyLocalFilter(rows,filter=''){
+  let out=[...rows];
+  filter.split('&').filter(Boolean).forEach(part=>{
+    if(part.startsWith('order=')){
+      const [field,dir]=decodeURIComponent(part.slice(6)).split('.');
+      out.sort((a,b)=>dir==='desc'?(b[field]||0)-(a[field]||0):(a[field]||0)-(b[field]||0));
+      return;
+    }
+    if(part.startsWith('limit=')){out=out.slice(0,Number(part.slice(6))||out.length);return}
+    if(part.startsWith('select='))return;
+    const m=part.match(/^([^=]+)=eq\.(.*)$/);
+    if(m){
+      const key=decodeURIComponent(m[1]),val=decodeURIComponent(m[2]);
+      out=out.filter(row=>String(row[key]??'')===val);
+    }
+  });
+  return out;
+}
+function localFetch(path,method='GET',body=null){
+  const db=localDB();
+  const [table,filter='']=path.split('?');
+  if(!db[table])db[table]=[];
+  if(method==='GET')return applyLocalFilter(db[table],filter);
+  if(method==='POST'){
+    const row={id:localId(),created_at:new Date().toISOString(),...body};
+    db[table].push(row);saveLocalDB(db);return [row];
+  }
+  if(method==='PATCH'){
+    const rows=applyLocalFilter(db[table],filter);
+    rows.forEach(row=>Object.assign(row,body));
+    saveLocalDB(db);return rows;
+  }
+  if(method==='DELETE'){
+    const rows=applyLocalFilter(db[table],filter);
+    db[table]=db[table].filter(row=>!rows.includes(row));
+    saveLocalDB(db);return rows;
+  }
+  return [];
+}
 async function sbFetch(path, method='GET', body=null){
+  if(DEMO_MODE)return localFetch(path,method,body);
   const opts={method,headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'}};
   if(body) opts.body=JSON.stringify(body);
   const res=await fetch(SB_URL+'/rest/v1/'+path,opts);
@@ -382,6 +442,172 @@ function gv(id){return(document.getElementById(id)||{}).value||''}
 function sc(s){return s>=70?'var(--green)':s>=45?'var(--orange)':'var(--red)'}
 function fmt(d){return new Date(d).toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'})}
 function genCode(){return Math.random().toString(36).substring(2,10).toUpperCase()}
+async function passValue(password){
+  if(!window.crypto?.subtle)return password;
+  const bytes=new TextEncoder().encode(password);
+  const hash=await crypto.subtle.digest('SHA-256',bytes);
+  const hex=[...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  return 'sha256:'+hex;
+}
+function safeString(v){
+  return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function sanitizeJSON(value){
+  if(Array.isArray(value)) return value.map(sanitizeJSON);
+  if(value&&typeof value==='object'){
+    return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,sanitizeJSON(v)]));
+  }
+  return typeof value==='string'?safeString(value):value;
+}
+function defaultCats(){
+  return {
+    nutricion:{score:50,label:'Nutrición',estado:'Mejorable'},
+    energia:{score:50,label:'Energía',estado:'Mejorable'},
+    sueno:{score:50,label:'Descanso',estado:'Mejorable'},
+    piel:{score:50,label:'Piel & Glow',estado:'Mejorable'},
+    composicion:{score:50,label:'Composición',estado:'Mejorable'},
+    mental:{score:50,label:'Mente',estado:'Mejorable'}
+  };
+}
+function normalizeReport(report,prompt,phase){
+  const r=sanitizeJSON(report||{});
+  r._fase=phase||r._fase||1;
+  r._prompt=safeString(prompt||r._prompt||'');
+  if(!r.cats) r.cats=defaultCats();
+  Object.keys(defaultCats()).forEach(k=>{if(!r.cats[k])r.cats[k]=defaultCats()[k]});
+  if(!r.score) r.score=Math.round(Object.values(r.cats).reduce((sum,c)=>sum+(Number(c.score)||50),0)/Object.values(r.cats).length);
+  if(!r.resumen) r.resumen=r._fase>=2?'Perfil con potencial claro de mejora.':'Análisis base listo para revisar.';
+  if(!r.imc) r.imc=0;
+  if(!r.imc_cat) r.imc_cat='Sin datos';
+  if(!r.tmb) r.tmb=0;
+  if(!r.kcal_mantenimiento) r.kcal_mantenimiento=0;
+  if(!r.macro_carencias) r.macro_carencias=[];
+  if(!r.micro_carencias) r.micro_carencias=[];
+  if(!r.pautas) r.pautas=[];
+  if(!r.plan_alimentacion) r.plan_alimentacion={kcal_objetivo:0,proteina_g:0,comidas:[]};
+  if(!r.plan_ejercicio) r.plan_ejercicio=[];
+  return r;
+}
+function publicReportURL(id){
+  if(location.protocol==='file:')return `${location.href.split('#')[0]}#report/${id}`;
+  const path=location.pathname.replace(/\/index\.html$/,'').replace(/\/$/,'');
+  return `${location.origin}${path||''}/#report/${id}`;
+}
+function clamp(n,min,max){return Math.max(min,Math.min(max,n))}
+function numFrom(text,patterns,fallback=0){
+  for(const pattern of patterns){
+    const m=String(text).match(pattern);
+    if(m)return Number(String(m[1]).replace(',','.'));
+  }
+  return fallback;
+}
+function scoreLabel(score,good='Buena',mid='Mejorable',bad='Baja'){
+  return score>=70?good:score>=45?mid:bad;
+}
+function demoProfile(prompt){
+  const txt=String(prompt||'').toLowerCase();
+  const edad=numFrom(txt,[/(\d{2})\s*años/,/edad[:\s]+(\d{2})/],38);
+  const peso=numFrom(txt,[/(\d{2,3}(?:[,.]\d)?)\s*kg/,/peso[:\s]+(\d{2,3}(?:[,.]\d)?)/],74);
+  const altura=numFrom(txt,[/(\d{3})\s*cm/,/mide\s*(\d{3})/,/altura[:\s]+(\d{3})/],164);
+  const sueno=numFrom(txt,[/sueño[:\s]+(\d(?:[,.]\d)?)/,/duerme\s*unas?\s*(\d(?:[,.]\d)?)/,/(\d(?:[,.]\d)?)\s*horas/],6);
+  const energia=numFrom(txt,[/energía[:\s]+(\d{1,2})/,/energia[:\s]+(\d{1,2})/],txt.includes('cans')||txt.includes('fatiga')?4:6);
+  const estres=numFrom(txt,[/estrés[:\s]+(\d{1,2})/,/estres[:\s]+(\d{1,2})/],txt.includes('estrés')||txt.includes('estres')?8:5);
+  const agua=numFrom(txt,[/agua[:\s]+(\d(?:[,.]\d)?)/,/(\d(?:[,.]\d)?)\s*l/],txt.includes('poca agua')?1:1.5);
+  const imc=altura?Number((peso/Math.pow(altura/100,2)).toFixed(1)):0;
+  const sedentario=txt.includes('sentad')||txt.includes('sedentar')||txt.includes('entrena muy poco');
+  const dulce=txt.includes('dulce')||txt.includes('ansiedad');
+  const piel=txt.includes('piel')||txt.includes('pelo')||txt.includes('apagada');
+  const malaDieta=txt.includes('salta')||txt.includes('come rápido')||txt.includes('desorden')||dulce;
+  const sleepScore=clamp(Math.round((sueno/8)*55+(txt.includes('ligero')||txt.includes('interrup')?8:22)),25,88);
+  const energyScore=clamp(energia*8-(txt.includes('cans')?8:0),25,85);
+  const stressScore=clamp(92-estres*7,25,86);
+  const nutritionScore=clamp(74-(malaDieta?22:0)-(agua<1.5?10:0),28,88);
+  const bodyScore=clamp(82-(imc>25?(imc-25)*6:0)-(sedentario?14:0),28,88);
+  const skinScore=clamp(78-(piel?22:0)-(agua<1.5?8:0),30,88);
+  const mentalScore=clamp(Math.round((energyScore+stressScore+sleepScore)/3),28,88);
+  const score=Math.round((nutritionScore+energyScore+sleepScore+skinScore+bodyScore+mentalScore)/6);
+  return {txt,edad,peso,altura,sueno,energia,estres,agua,imc,score,nutritionScore,energyScore,sleepScore,skinScore,bodyScore,mentalScore};
+}
+function demoResponse(systemPrompt,userPrompt){
+  const p=demoProfile(userPrompt);
+  if(systemPrompt.includes('Experto en bienestar')){
+    const mujer=p.txt.includes('mujer')||p.txt.includes('laura')||p.txt.includes('ella');
+    const grasa=clamp(Math.round((p.imc*1.2)+(mujer?7:1)),12,42);
+    const tmb=Math.round((10*p.peso)+(6.25*p.altura)-(5*p.edad)+(mujer?-161:5));
+    const kcal=Math.round(tmb*(p.txt.includes('activo')?1.55:p.txt.includes('moderado')?1.45:1.25));
+    return {
+      score:p.score,imc:p.imc,imc_cat:p.imc>=30?'Obesidad':p.imc>=25?'Sobrepeso':p.imc>=18.5?'Normal':'Bajo',
+      grasa_pct:grasa,grasa_cat:grasa>=32?'Alta':grasa>=24?'Mejorable':'Saludable',
+      masa_muscular_kg:Number((p.peso*(1-grasa/100)*0.72).toFixed(1)),tmb,kcal_mantenimiento:kcal,
+      cats:{
+        nutricion:{score:p.nutritionScore,label:'Nutrición',estado:scoreLabel(p.nutritionScore,'Buena','Mejorable','Deficiente')},
+        energia:{score:p.energyScore,label:'Energía',estado:scoreLabel(p.energyScore,'Estable','Irregular','Baja')},
+        sueno:{score:p.sleepScore,label:'Descanso',estado:scoreLabel(p.sleepScore,'Reparador','Mejorable','Alterado')},
+        piel:{score:p.skinScore,label:'Piel & Glow',estado:scoreLabel(p.skinScore,'Buena','Apagada','Reactiva')},
+        composicion:{score:p.bodyScore,label:'Composición',estado:scoreLabel(p.bodyScore,'Atlética','Mejorable','Estancada')},
+        mental:{score:p.mentalScore,label:'Mente',estado:scoreLabel(p.mentalScore,'Clara','Tensa','Baja')}
+      }
+    };
+  }
+  if(systemPrompt.includes('Nutricionista experto')){
+    return {
+      macro_carencias:[
+        {macro:'Proteína total',nivel:p.nutritionScore<55?'Bajo':'Regular',impacto:'Saciedad y tono muscular',pct_estimado:clamp(p.nutritionScore+8,35,75)},
+        {macro:'Fibra y vegetales',nivel:'Bajo',impacto:'Hinchazón y ansiedad',pct_estimado:45},
+        {macro:'Grasas saludables',nivel:'Regular',impacto:'Piel y sistema hormonal',pct_estimado:55}
+      ],
+      micro_carencias:[
+        {micro:'Magnesio',nivel:'Probable',sintomas:'Sueño ligero y estrés',fuentes:'Frutos secos y cacao'},
+        {micro:'Omega-3',nivel:'Probable',sintomas:'Inflamación y piel apagada',fuentes:'Pescado azul y nueces'},
+        {micro:'Vitamina D',nivel:'Revisar',sintomas:'Fatiga y ánimo bajo',fuentes:'Sol, huevos y analítica'}
+      ]
+    };
+  }
+  if(systemPrompt.includes('Coach de bienestar')){
+    return {
+      escenario_neg:'Sin cambios: más fatiga, antojos y estancamiento.',
+      escenario_pos:'En 60 días: energía, digestión y cuerpo respondiendo.',
+      dolor_puntos:['Te levantas sin recuperar','La tarde dispara antojos','Tu cuerpo no responde','La concentración cae'],
+      vision_puntos:['Despertar con energía real','Controlar hambre y ansiedad','Sentirte ligera y constante','Ver progreso medible'],
+      pautas:[
+        {area:'Nutrición',texto:'Proteína en cada comida.'},
+        {area:'Hidratación',texto:'Subir agua a 2L diarios.'},
+        {area:'Descanso',texto:'Rutina nocturna sin pantallas.'},
+        {area:'Movimiento',texto:'Caminar 30 minutos al día.'},
+        {area:'Suplementación',texto:'Cubrir micronutrientes clave.'}
+      ],
+      resumen:'Perfil con bloqueos claros y mejora rápida.'
+    };
+  }
+  if(systemPrompt.includes('Nutricionista.')){
+    const objetivo=Math.round((p.imc>=25?p.peso*22:p.peso*28)/50)*50;
+    return {plan_alimentacion:{
+      kcal_objetivo:objetivo,proteina_g:Math.round(p.peso*1.6),nota_deficit:'Déficit suave y sostenible.',
+      comidas:[
+        {tiempo:'Desayuno',descripcion:'Huevos, fruta y avena',kcal:350},
+        {tiempo:'Media mañana',descripcion:'Yogur y nueces',kcal:180},
+        {tiempo:'Almuerzo',descripcion:'Proteína, verduras y arroz',kcal:480},
+        {tiempo:'Merienda',descripcion:'Batido o queso fresco',kcal:180},
+        {tiempo:'Cena',descripcion:'Pescado y verduras',kcal:380}
+      ],
+      suplementos_recomendados:[
+        {nombre:'Proteína',razon:'Facilita llegar al objetivo diario',cuando:'Desayuno o post-entreno'},
+        {nombre:'Omega-3',razon:'Apoya piel e inflamación',cuando:'Comida principal'},
+        {nombre:'Magnesio',razon:'Sueño y gestión del estrés',cuando:'Antes de dormir'},
+        {nombre:'Multinutriente',razon:'Cubre huecos de micronutrición',cuando:'Con desayuno'}
+      ]
+    }};
+  }
+  return {plan_ejercicio:[
+    {dia:'Lunes',tipo:'Fuerza total',duracion:'35 min',descripcion:'Sentadilla y remo'},
+    {dia:'Martes',tipo:'Cardio suave',duracion:'30 min',descripcion:'Caminata rápida'},
+    {dia:'Miércoles',tipo:'Movilidad',duracion:'20 min',descripcion:'Cadera y espalda'},
+    {dia:'Jueves',tipo:'Fuerza inferior',duracion:'35 min',descripcion:'Zancadas y puente'},
+    {dia:'Viernes',tipo:'Fuerza superior',duracion:'35 min',descripcion:'Empuje y tirón'},
+    {dia:'Sábado',tipo:'Outdoor',duracion:'45 min',descripcion:'Paseo largo'},
+    {dia:'Domingo',tipo:'Descanso',duracion:'-',descripcion:'Recuperación'}
+  ]};
+}
 
 function switchTab(t,idx){
   document.querySelectorAll('#main-tabs .tab').forEach((e,i)=>e.classList.toggle('on',i===idx));
@@ -460,21 +686,28 @@ async function doReg(){
   if(!n||!e||!p){err.textContent='Completa todos los campos';err.style.display='block';return}
   if(p.length<6){err.textContent='Contraseña mínimo 6 caracteres';err.style.display='block';return}
   if(e===ADMIN_EMAIL.toLowerCase()){err.textContent='Email no disponible';err.style.display='block';return}
-  ok.textContent='Verificando...';ok.style.display='block';
-  const existing=await sbGet('users','email=eq.'+encodeURIComponent(e));
-  if(existing.length){err.textContent='Email ya registrado';err.style.display='block';ok.style.display='none';return}
-  const code=genCode();
-  const res=await sbInsert('users',{email:e,name:n,password:p,recovery_code:code});
-  if(!res||res.error){err.textContent='Error al crear cuenta';err.style.display='block';ok.style.display='none';return}
-  ok.textContent='Cuenta creada, accediendo...';
-  setTimeout(()=>loginUser(res[0]||{email:e,name:n}),800);
+  try{
+    ok.textContent=DEMO_MODE?'Creando cuenta demo...':'Verificando...';ok.style.display='block';
+    const existing=await sbGet('users','email=eq.'+encodeURIComponent(e));
+    if(existing.length){err.textContent='Email ya registrado';err.style.display='block';ok.style.display='none';return}
+    const code=genCode();
+    const res=await sbInsert('users',{email:e,name:n,password:await passValue(p),recovery_code:code});
+    if(!res||res.error){err.textContent='Error al crear cuenta';err.style.display='block';ok.style.display='none';return}
+    ok.textContent='Cuenta creada, accediendo...';
+    setTimeout(()=>loginUser(res[0]||{email:e,name:n}),300);
+  }catch(ex){
+    ok.style.display='none';
+    err.textContent='No se pudo crear la cuenta: '+safeString(ex.message||ex);
+    err.style.display='block';
+  }
 }
 
 async function doLogin(){
   const e=gv('li-email').trim().toLowerCase(),p=gv('li-pass').trim();
   const err=document.getElementById('li-err');err.style.display='none';
   if(e===ADMIN_EMAIL.toLowerCase()&&p===ADMIN_PASS){setTimeout(()=>{renderAdmin();go('s-admin');},0);return}
-  const users=await sbGet('users','email=eq.'+encodeURIComponent(e)+'&password=eq.'+encodeURIComponent(p));
+  let users=await sbGet('users','email=eq.'+encodeURIComponent(e)+'&password=eq.'+encodeURIComponent(await passValue(p)));
+  if(!users.length) users=await sbGet('users','email=eq.'+encodeURIComponent(e)+'&password=eq.'+encodeURIComponent(p));
   if(!users.length){err.textContent='Email o contraseña incorrectos';err.style.display='block';return}
   loginUser(users[0]);
 }
@@ -487,7 +720,7 @@ async function doRecover(){
   const users=await sbGet('users','email=eq.'+encodeURIComponent(e)+'&recovery_code=eq.'+code);
   if(!users.length){err.textContent='Email o código incorrecto';err.style.display='block';return}
   const newCode=genCode();
-  await sbUpdate('users','email=eq.'+encodeURIComponent(e),{password:p,recovery_code:newCode});
+  await sbUpdate('users','email=eq.'+encodeURIComponent(e),{password:await passValue(p),recovery_code:newCode});
   ok.textContent='Contraseña actualizada. Accediendo...';ok.style.display='block';
   setTimeout(()=>loginUser(users[0]),900);
 }
@@ -556,16 +789,14 @@ async function viewHist(i,leadId){
   const hist=lead.history||[{report:lead.report,date:lead.date}];
   const h=hist[i];
   if(!h||!h.report){alert('Este análisis no tiene datos disponibles.');return;}
-  // ensure cats exists
-  if(!h.report.cats) h.report.cats={
-    nutricion:{score:50,label:'Nutrición',estado:'Mejorable'},
-    energia:{score:50,label:'Energía',estado:'Mejorable'},
-    sueno:{score:50,label:'Descanso',estado:'Mejorable'},
-    piel:{score:50,label:'Piel & Glow',estado:'Mejorable'},
-    composicion:{score:50,label:'Composición',estado:'Mejorable'},
-    mental:{score:50,label:'Mente',estado:'Mejorable'}
+  h.report=normalizeReport(h.report,h.prompt_original||lead.prompt_original||h.report._prompt,h.report._fase||1);
+  CUR_REPORT={
+    report:h.report,
+    nombre:lead.nombre,
+    telefono:lead.telefono,
+    date:h.date,
+    prompt_original:h.prompt_original||lead.prompt_original||h.report._prompt||''
   };
-  CUR_REPORT={report:h.report,nombre:lead.nombre,telefono:lead.telefono,date:h.date};
   renderReport(CUR_REPORT);go('s-report');
 }
 
@@ -582,8 +813,8 @@ async function saveLead(entry){
     if(leads.length){
       const lead=leads[0];
       const hist=lead.history||[{report:lead.report,date:lead.date}];
-      hist.push({report:entry.report,date:entry.date});
-      await sbUpdate('leads','id=eq.'+CUR_LEAD_ID,{report:entry.report,date:entry.date,history:hist});
+      hist.push({report:entry.report,date:entry.date,prompt_original:entry.prompt_original});
+      await sbUpdate('leads','id=eq.'+CUR_LEAD_ID,{report:entry.report,date:entry.date,history:hist,prompt_original:entry.prompt_original});
       return;
     }
   }
@@ -593,9 +824,26 @@ async function saveLead(entry){
     telefono:entry.telefono||'',
     date:entry.date,
     report:entry.report,
-    history:[{report:entry.report,date:entry.date}]
+    history:[{report:entry.report,date:entry.date,prompt_original:entry.prompt_original}],
+    prompt_original:entry.prompt_original
   });
   if(res&&res[0]) CUR_LEAD_ID=res[0].id;
+}
+
+async function updateCurrentLead(entry){
+  if(!CUR_LEAD_ID)return;
+  const leads=await sbGet('leads','id=eq.'+CUR_LEAD_ID);
+  if(!leads.length)return;
+  const lead=leads[0];
+  const hist=lead.history||[{report:lead.report,date:lead.date,prompt_original:lead.prompt_original}];
+  const last=hist.length-1;
+  hist[last]={...hist[last],report:entry.report,date:entry.date,prompt_original:entry.prompt_original};
+  await sbUpdate('leads','id=eq.'+CUR_LEAD_ID,{
+    report:entry.report,
+    date:entry.date,
+    history:hist,
+    prompt_original:entry.prompt_original
+  });
 }
 
 // ─── FORM SUBMIT ──────────────────────────────────────
@@ -610,6 +858,7 @@ function submitForm(){
 function submitText(){
   const nom=gv('t-nom'),txt=gv('t-txt'),err=document.getElementById('t-err');
   if(!nom||!txt){err.textContent='Añade nombre y texto';err.style.display='block';return}
+  if(txt.length>INPUT_LIMIT){err.textContent=`Reduce la transcripción a ${INPUT_LIMIT} caracteres para evitar respuestas cortadas`;err.style.display='block';return}
   err.style.display='none';
   runAI(`Transcripción para análisis de bienestar. Nombre: ${nom}.\n\n${txt}`,nom,gv('t-tel'));
 }
@@ -620,19 +869,24 @@ function setLoad(m){
 }
 
 async function callAPI(systemPrompt,userPrompt,maxTok=1500){
+  if(DEMO_MODE){
+    await new Promise(res=>setTimeout(res,350));
+    return sanitizeJSON(demoResponse(systemPrompt,userPrompt));
+  }
   const res=await fetch(API_ENDPOINT,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({model:MODEL,max_tokens:maxTok,system:systemPrompt,messages:[{role:'user',content:userPrompt}]})
   });
-  const data=await res.json();
+  const data=await res.json().catch(()=>({error:'Respuesta inválida del proxy'}));
+  if(!res.ok)throw new Error(data.error?.message||data.error||'Error del proxy IA');
   if(data.error)throw new Error(JSON.stringify(data.error));
-  const raw=data.content[0].text;
+  const raw=data.content?.[0]?.text||'';
   const s=raw.indexOf('{'),e=raw.lastIndexOf('}');
   if(s===-1)throw new Error('Sin JSON en respuesta');
   // if truncated, try to close it
   let jsonStr=e>s?raw.substring(s,e+1):raw.substring(s);
-  try{return JSON.parse(jsonStr)}catch(err){
+  try{return sanitizeJSON(JSON.parse(jsonStr))}catch(err){
     // attempt repair: close open arrays/objects
     let fixed=jsonStr;
     // remove trailing incomplete string
@@ -643,7 +897,7 @@ async function callAPI(systemPrompt,userPrompt,maxTok=1500){
     const opens=(fixed.match(/\[/g)||[]).length-(fixed.match(/\]/g)||[]).length;
     const objs=(fixed.match(/\{/g)||[]).length-(fixed.match(/\}/g)||[]).length;
     fixed+=']'.repeat(Math.max(0,opens))+'}'.repeat(Math.max(0,objs));
-    try{return JSON.parse(fixed)}catch(e2){throw new Error('JSON inválido: '+e2.message)}
+    try{return sanitizeJSON(JSON.parse(fixed))}catch(e2){throw new Error('JSON inválido: '+e2.message)}
   }
 }
 
@@ -658,6 +912,28 @@ async function runAI(prompt,nombre,telefono){
     const r2=await callAPI('Nutricionista experto. SOLO JSON. Strings max 6 palabras.',
       `Perfil: ${prompt}\nResponde exactamente:\n{"macro_carencias":[{"macro":"Grasas saludables","nivel":"Bajo","impacto":"Piel seca e inflamación","pct_estimado":50},{"macro":"Proteína total","nivel":"Regular","impacto":"Recuperación muscular lenta","pct_estimado":65}],"micro_carencias":[{"micro":"Omega-3","nivel":"Bajo","sintomas":"Inflamación y piel apagada","fuentes":"Pescado azul y nueces"},{"micro":"Magnesio","nivel":"Deficiente","sintomas":"Sueño fragmentado y estrés","fuentes":"Frutos secos y legumbres"},{"micro":"Vitamina D","nivel":"Moderado","sintomas":"Fatiga y recuperación lenta","fuentes":"Sol y huevos"}]}`);
 
+    const report=normalizeReport({...r1,...r2},prompt,1);
+    const entry={nombre:safeString(nombre),telefono:safeString(telefono),date:Date.now(),report,prompt_original:safeString(prompt)};
+    await saveLead(entry);
+    CUR_REPORT=entry;
+    renderReport(entry);
+  }catch(e){
+    document.getElementById('report-body').innerHTML=`
+      <div style="padding:32px 20px;text-align:center">
+        <div style="color:var(--red);font-size:15px;margin-bottom:10px">Error al generar el análisis</div>
+        <div style="font-size:12px;color:var(--text2);background:#111;padding:12px;border-radius:8px;text-align:left;word-break:break-all;max-height:160px;overflow:auto">${safeString(e.message)}</div>
+        <div style="height:20px"></div>
+        <button class="btn btn-ghost btn-sm" onclick="backToDash()" style="margin:0 auto">Volver</button>
+      </div>`;
+  }
+}
+
+async function generarDiagnostico(){
+  if(!CUR_REPORT?.report)return;
+  const base=CUR_REPORT.report;
+  const prompt=base._prompt||CUR_REPORT.prompt_original||'';
+  go('s-report');
+  try{
     setLoad('Generando plan de mejora...');
     const r3=await callAPI('Coach de bienestar. SOLO JSON sin texto extra. Strings MAX 8 palabras cada uno.',
       `Perfil: ${prompt}\nJSON exacto (strings cortos):\n{"escenario_neg":"Sin cambios: fatiga, grasa y deterioro en 12 meses.","escenario_pos":"En 60 días: energía, cuerpo y piel transformados.","dolor_puntos":["Fatiga sin mejora con descanso","Cuerpo sin respuesta a esfuerzos","Piel y pelo delatan estado interno","Niebla mental afecta rendimiento"],"vision_puntos":["Energía real al despertar","Reconocerte al espejo de nuevo","Rendir al 100% en todo","Control total de tu bienestar"],"pautas":[{"area":"Nutrición","texto":"Proteína en cada comida."},{"area":"Descanso","texto":"Sin pantallas 1h antes de dormir."},{"area":"Hidratación","texto":"2L agua diarios al despertar."},{"area":"Movimiento","texto":"30 min diarios mínimo."},{"area":"Suplementación","texto":"Tu dieta no cubre micronutrientes esenciales."}],"resumen":"Potencial bloqueado por hábitos corregibles."}`);
@@ -670,39 +946,21 @@ async function runAI(prompt,nombre,telefono){
     const r5=await callAPI('Entrenador personal. SOLO JSON. Strings MAX 4 palabras.',
       `Perfil: ${prompt}\nJSON exacto:\n{"plan_ejercicio":[{"dia":"Lunes","tipo":"Fuerza superior","duracion":"45 min","descripcion":"Press y remo"},{"dia":"Martes","tipo":"Cardio suave","duracion":"30 min","descripcion":"Caminata rápida"},{"dia":"Miércoles","tipo":"Fuerza inferior","duracion":"45 min","descripcion":"Sentadilla y zancadas"},{"dia":"Jueves","tipo":"Descanso activo","duracion":"20 min","descripcion":"Yoga suave"},{"dia":"Viernes","tipo":"Full body","duracion":"50 min","descripcion":"Circuito completo"},{"dia":"Sábado","tipo":"Outdoor","duracion":"45 min","descripcion":"Bici o senderismo"},{"dia":"Domingo","tipo":"Descanso","duracion":"-","descripcion":"Recuperación"}]}`,2000);
 
-    const report={...r1,...r2,...r3,...r4,...r5};
-    // safety guards
-    if(!report.cats) report.cats={
-      nutricion:{score:50,label:'Nutrición',estado:'Mejorable'},
-      energia:{score:50,label:'Energía',estado:'Mejorable'},
-      sueno:{score:50,label:'Descanso',estado:'Mejorable'},
-      piel:{score:50,label:'Piel & Glow',estado:'Mejorable'},
-      composicion:{score:50,label:'Composición',estado:'Mejorable'},
-      mental:{score:50,label:'Mente',estado:'Mejorable'}
-    };
+    const report=normalizeReport({...base,...r3,...r4,...r5},prompt,2);
     if(!report.escenario_neg||report.escenario_neg==='undefined') report.escenario_neg='Fatiga crónica, más grasa y menor calidad de vida progresiva.';
     if(!report.escenario_pos||report.escenario_pos==='undefined') report.escenario_pos='En 60 días: más energía, mejor composición y piel visible.';
     if(!report.resumen||report.resumen==='undefined') report.resumen='Perfil con potencial claro de mejora.';
-    if(!report.imc) report.imc=0;
-    if(!report.imc_cat) report.imc_cat='Sin datos';
-    if(!report.tmb) report.tmb=0;
-    if(!report.kcal_mantenimiento) report.kcal_mantenimiento=0;
-    if(!report.macro_carencias) report.macro_carencias=[];
-    if(!report.micro_carencias) report.micro_carencias=[];
-    if(!report.pautas) report.pautas=[];
-    if(!report.plan_alimentacion) report.plan_alimentacion={kcal_objetivo:0,proteina_g:0,comidas:[]};
-    if(!report.plan_ejercicio) report.plan_ejercicio=[];
-    const entry={nombre,telefono,date:Date.now(),report,prompt_original:prompt};
-    await saveLead(entry);
+    const entry={...CUR_REPORT,report,prompt_original:safeString(prompt)};
+    await updateCurrentLead(entry);
     CUR_REPORT=entry;
     renderReport(entry);
   }catch(e){
     document.getElementById('report-body').innerHTML=`
       <div style="padding:32px 20px;text-align:center">
-        <div style="color:var(--red);font-size:15px;margin-bottom:10px">Error al generar el análisis</div>
-        <div style="font-size:12px;color:var(--text2);background:#111;padding:12px;border-radius:8px;text-align:left;word-break:break-all;max-height:160px;overflow:auto">${e.message}</div>
+        <div style="color:var(--red);font-size:15px;margin-bottom:10px">Error al generar el diagnóstico</div>
+        <div style="font-size:12px;color:var(--text2);background:#111;padding:12px;border-radius:8px;text-align:left;word-break:break-all;max-height:160px;overflow:auto">${safeString(e.message)}</div>
         <div style="height:20px"></div>
-        <button class="btn btn-ghost btn-sm" onclick="backToDash()" style="margin:0 auto">Volver</button>
+        <button class="btn btn-ghost btn-sm" onclick="renderReport(CUR_REPORT)" style="margin:0 auto">Volver al análisis base</button>
       </div>`;
   }
 }
@@ -741,7 +999,8 @@ function radarSVG(cats){
 
 // ─── RENDER REPORT ────────────────────────────────────
 function renderReport(entry){
-  const r=entry.report,col=sc(r.score);
+  entry.report=normalizeReport(entry.report,entry.prompt_original||entry.report?._prompt,entry.report?._fase||1);
+  const r=entry.report,col=sc(r.score),isFull=Number(r._fase)>=2;
   const circ=2*Math.PI*52,dash=(r.score/100)*circ;
   const cats=Object.values(r.cats),catKeys=Object.keys(r.cats);
   const scoreLbl=r.score>=70?'ÓPTIMO':r.score>=45?'MEJORABLE':'CRÍTICO';
@@ -765,7 +1024,7 @@ function renderReport(entry){
   </div>
   <div style="display:flex;justify-content:center;padding:8px 0 16px">${radarSVG(r.cats)}</div>
   <div style="padding:0 20px 4px">
-    ${(!r._fase||r._fase===1)?`
+    ${!isFull?`
     <div style="padding:16px;background:rgba(201,168,76,.06);border:1px solid var(--border3);border-radius:var(--r2);margin-bottom:16px">
       <div style="font-size:13px;font-weight:500;color:var(--gold);margin-bottom:6px">✦ Análisis base completado</div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">Scores y métricas calculados. Cuando estés listo con el cliente, genera el diagnóstico completo con proyección y planes personalizados.</div>
@@ -825,7 +1084,7 @@ function renderReport(entry){
         <div style="font-size:11px;color:var(--text3)">Fuentes: ${m.fuentes}</div>
       </div>`).join('')}
     </div>`:''}
-    <div class="glass section">
+    ${isFull?`<div class="glass section">
       <div class="sec-lbl">Tu proyección</div>
       ${r.dolor_puntos?.length?`
       <div style="margin-bottom:16px">
@@ -906,7 +1165,11 @@ function renderReport(entry){
         <div style="font-size:11px;color:var(--text3);margin-top:10px">El cliente verá su informe completo</div>
       </div>
     </div>
-    <button class="btn btn-ghost" id="btn-download" style="font-size:13px;margin-bottom:30px">⬇ Descargar HTML</button>
+    <button class="btn btn-ghost" id="btn-download" style="font-size:13px;margin-bottom:30px">⬇ Descargar HTML</button>`:`
+    <div class="glass section">
+      <div class="sec-lbl">Siguiente fase</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.7">El informe completo se desbloquea al generar el diagnóstico. Así el distribuidor puede revisar primero las métricas base con el cliente y después abrir la conversación de mejora.</div>
+    </div>`}
   </div>`;
   document.getElementById('report-body').innerHTML=html;
   // attach events after DOM update
@@ -927,6 +1190,7 @@ function renderReport(entry){
 // ─── SHARE / EXPORT ───────────────────────────────────
 function buildHTML(){
   const r=CUR_REPORT;if(!r)return'';
+  r.report=normalizeReport(r.report,r.prompt_original||r.report?._prompt,r.report?._fase||2);
   const rp=r.report,col=rp.score>=70?'#30D158':rp.score>=45?'#FF9F0A':'#FF453A';
   const circ=2*Math.PI*52,dash=(rp.score/100)*circ;
   const cats=Object.values(rp.cats),catKeys=Object.keys(rp.cats);
@@ -961,8 +1225,7 @@ async function publishReport(){
     const res=await sbInsert('public_reports',{html:h});
     if(!res||!res[0])return null;
     const id=res[0].id;
-    // Use hash URL — works without server-side redirects
-    return `https://vitalscan-kappa.vercel.app/#report/${id}`;
+    return publicReportURL(id);
   }catch(e){
     console.error('publishReport error:',e);
     return null;
@@ -1027,20 +1290,17 @@ const doShareWA=async function(){
   const msg=`🌿 *VITALSCAN PRO*\n\n👤 *${r.nombre}*\n📅 ${fmt(r.date)}\n\n⚡ *Score: ${rp.score}/100 — ${rp.score>=70?'ÓPTIMO':rp.score>=45?'MEJORABLE':'CRÍTICO'}*\n\n❌ *Si no cambias nada...*\n${rp.escenario_neg}\n\n✅ *Con el programa correcto...*\n${rp.escenario_pos}${linkLine}\n\n_VitalScan Pro · Wellness Intelligence_`;
   window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
 };
-const doShowQR=function(){
+const doShowQR=async function(){
   const wrap=document.getElementById('qr-wrap');if(!wrap)return;
   wrap.style.display=wrap.style.display==='none'?'block':'none';
   if(wrap.style.display==='none')return;
-  loadQRLib().then(()=>{
-    const h=buildHTML();
-    const fr=new FileReader();
-    fr.onload=e=>{
-      const qd=document.getElementById('qr-canvas');if(!qd)return;
-      qd.innerHTML='';
-      new QRCode(qd,{text:e.target.result,width:200,height:200,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.L});
-    };
-    fr.readAsDataURL(new Blob([h],{type:'text/html'}));
-  });
+  const qd=document.getElementById('qr-canvas');if(qd)qd.innerHTML='<div class="spinner" style="margin:0 auto"></div>';
+  const url=await publishReport();
+  if(!url){if(qd)qd.innerHTML='<div style="font-size:12px;color:var(--red)">No se pudo crear el enlace público</div>';return;}
+  await loadQRLib();
+  if(!qd)return;
+  qd.innerHTML='';
+  new QRCode(qd,{text:url,width:200,height:200,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
 };
 const doDownload=function(){
   const r=CUR_REPORT;if(!r)return;
