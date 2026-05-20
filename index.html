@@ -425,6 +425,21 @@ async function sbUpdate(table, filter, data){
 async function sbDelete(table, filter){
   return sbFetch(table+'?'+filter,'DELETE');
 }
+function withoutPromptOriginal(data){
+  const clean={...data};
+  delete clean.prompt_original;
+  return clean;
+}
+async function sbInsertLead(data){
+  let res=await sbInsert('leads',data);
+  if(Array.isArray(res))return res;
+  return sbInsert('leads',withoutPromptOriginal(data));
+}
+async function sbUpdateLead(filter,data){
+  let res=await sbUpdate('leads',filter,data);
+  if(Array.isArray(res))return res;
+  return sbUpdate('leads',filter,withoutPromptOriginal(data));
+}
 
 // ─── STATE ────────────────────────────────────────────
 let CU=null; // current user object
@@ -473,14 +488,32 @@ function normalizeReport(report,prompt,phase){
   const r=sanitizeJSON(report||{});
   r._fase=phase||r._fase||1;
   r._prompt=safeString(prompt||r._prompt||'');
+  const fallback=prompt?demoResponse('Experto en bienestar',prompt):null;
+  const catsMissing=!r.cats;
+  const catsFlat=r.cats&&Object.values(r.cats).every(c=>Number(c.score)===50);
+  if((catsMissing||catsFlat)&&fallback){
+    r.cats=fallback.cats;
+    r.score=fallback.score;
+  }
   if(!r.cats) r.cats=defaultCats();
   Object.keys(defaultCats()).forEach(k=>{if(!r.cats[k])r.cats[k]=defaultCats()[k]});
   if(!r.score) r.score=Math.round(Object.values(r.cats).reduce((sum,c)=>sum+(Number(c.score)||50),0)/Object.values(r.cats).length);
   if(!r.resumen) r.resumen=r._fase>=2?'Perfil con potencial claro de mejora.':'Análisis base listo para revisar.';
+  if(fallback){
+    if(!r.imc) r.imc=fallback.imc;
+    if(!r.imc_cat) r.imc_cat=fallback.imc_cat;
+    if(!r.grasa_pct) r.grasa_pct=fallback.grasa_pct;
+    if(!r.grasa_cat) r.grasa_cat=fallback.grasa_cat;
+    if(!r.masa_muscular_kg) r.masa_muscular_kg=fallback.masa_muscular_kg;
+    if(!r.tmb) r.tmb=fallback.tmb;
+    if(!r.kcal_mantenimiento) r.kcal_mantenimiento=fallback.kcal_mantenimiento;
+  }
   if(!r.imc) r.imc=0;
   if(!r.imc_cat) r.imc_cat='Sin datos';
   if(!r.tmb) r.tmb=0;
   if(!r.kcal_mantenimiento) r.kcal_mantenimiento=0;
+  if((!r.macro_carencias||!r.macro_carencias.length)&&prompt) r.macro_carencias=demoResponse('Nutricionista experto',prompt).macro_carencias;
+  if((!r.micro_carencias||!r.micro_carencias.length)&&prompt) r.micro_carencias=demoResponse('Nutricionista experto',prompt).micro_carencias;
   if(!r.macro_carencias) r.macro_carencias=[];
   if(!r.micro_carencias) r.micro_carencias=[];
   if(!r.pautas) r.pautas=[];
@@ -814,11 +847,11 @@ async function saveLead(entry){
       const lead=leads[0];
       const hist=lead.history||[{report:lead.report,date:lead.date}];
       hist.push({report:entry.report,date:entry.date,prompt_original:entry.prompt_original});
-      await sbUpdate('leads','id=eq.'+CUR_LEAD_ID,{report:entry.report,date:entry.date,history:hist,prompt_original:entry.prompt_original});
+      await sbUpdateLead('id=eq.'+CUR_LEAD_ID,{report:entry.report,date:entry.date,history:hist,prompt_original:entry.prompt_original});
       return;
     }
   }
-  const res=await sbInsert('leads',{
+  const res=await sbInsertLead({
     distributor_email:CU.email,
     nombre:entry.nombre,
     telefono:entry.telefono||'',
@@ -838,7 +871,7 @@ async function updateCurrentLead(entry){
   const hist=lead.history||[{report:lead.report,date:lead.date,prompt_original:lead.prompt_original}];
   const last=hist.length-1;
   hist[last]={...hist[last],report:entry.report,date:entry.date,prompt_original:entry.prompt_original};
-  await sbUpdate('leads','id=eq.'+CUR_LEAD_ID,{
+  await sbUpdateLead('id=eq.'+CUR_LEAD_ID,{
     report:entry.report,
     date:entry.date,
     history:hist,
