@@ -504,7 +504,11 @@ function normalizeReport(report,prompt,phase){
     if(!r.imc_cat) r.imc_cat=fallback.imc_cat;
     if(!r.grasa_pct) r.grasa_pct=fallback.grasa_pct;
     if(!r.grasa_cat) r.grasa_cat=fallback.grasa_cat;
+    if(!r.masa_grasa_kg) r.masa_grasa_kg=fallback.masa_grasa_kg;
+    if(!r.masa_magra_kg) r.masa_magra_kg=fallback.masa_magra_kg;
     if(!r.masa_muscular_kg) r.masa_muscular_kg=fallback.masa_muscular_kg;
+    if(!r.proteina_min_g) r.proteina_min_g=fallback.proteina_min_g;
+    if(!r.proteina_max_g) r.proteina_max_g=fallback.proteina_max_g;
     if(!r.tmb) r.tmb=fallback.tmb;
     if(!r.kcal_mantenimiento) r.kcal_mantenimiento=fallback.kcal_mantenimiento;
   }
@@ -519,6 +523,20 @@ function normalizeReport(report,prompt,phase){
   if(!r.pautas) r.pautas=[];
   if(!r.plan_alimentacion) r.plan_alimentacion={kcal_objetivo:0,proteina_g:0,comidas:[]};
   if(!r.plan_ejercicio) r.plan_ejercicio=[];
+  if(r._fase>=2&&prompt){
+    const nutri=demoResponse('Asesor nutricional Herbalife',prompt).plan_alimentacion;
+    if(!r.plan_alimentacion?.comidas?.length) r.plan_alimentacion=nutri;
+    if(!r.plan_alimentacion.preparacion_batido) r.plan_alimentacion.preparacion_batido=nutri.preparacion_batido;
+    if(!r.plan_alimentacion.regla_batido) r.plan_alimentacion.regla_batido=nutri.regla_batido;
+    if(!r.plan_alimentacion.proteina_max_g) r.plan_alimentacion.proteina_max_g=nutri.proteina_max_g;
+    const coach=demoResponse('Coach de bienestar',prompt);
+    if(!r.argumentos_venta?.length) r.argumentos_venta=coach.argumentos_venta;
+    if(!r.consecuencias_no_actuar?.length) r.consecuencias_no_actuar=coach.consecuencias_no_actuar;
+    if(!r.puente_programa) r.puente_programa=coach.puente_programa;
+    if(!r.frase_cierre) r.frase_cierre=coach.frase_cierre;
+  }
+  if(!r.argumentos_venta) r.argumentos_venta=[];
+  if(!r.consecuencias_no_actuar) r.consecuencias_no_actuar=[];
   return r;
 }
 function publicReportURL(id){
@@ -542,11 +560,28 @@ function demoProfile(prompt){
   const edad=numFrom(txt,[/(\d{2})\s*años/,/edad[:\s]+(\d{2})/],38);
   const peso=numFrom(txt,[/(\d{2,3}(?:[,.]\d)?)\s*kg/,/peso[:\s]+(\d{2,3}(?:[,.]\d)?)/],74);
   const altura=numFrom(txt,[/(\d{3})\s*cm/,/mide\s*(\d{3})/,/altura[:\s]+(\d{3})/],164);
+  const cintura=numFrom(txt,[/cintura\s*(\d{2,3}(?:[,.]\d)?)/,/cintura[:\s]+(\d{2,3}(?:[,.]\d)?)/],0);
+  const cuello=numFrom(txt,[/cuello\s*(\d{2,3}(?:[,.]\d)?)/,/cuello[:\s]+(\d{2,3}(?:[,.]\d)?)/],0);
+  const cadera=numFrom(txt,[/cadera\s*(\d{2,3}(?:[,.]\d)?)/,/cadera[:\s]+(\d{2,3}(?:[,.]\d)?)/],0);
   const sueno=numFrom(txt,[/sueño[:\s]+(\d(?:[,.]\d)?)/,/duerme\s*unas?\s*(\d(?:[,.]\d)?)/,/(\d(?:[,.]\d)?)\s*horas/],6);
   const energia=numFrom(txt,[/energía[:\s]+(\d{1,2})/,/energia[:\s]+(\d{1,2})/],txt.includes('cans')||txt.includes('fatiga')?4:6);
   const estres=numFrom(txt,[/estrés[:\s]+(\d{1,2})/,/estres[:\s]+(\d{1,2})/],txt.includes('estrés')||txt.includes('estres')?8:5);
   const agua=numFrom(txt,[/agua[:\s]+(\d(?:[,.]\d)?)/,/(\d(?:[,.]\d)?)\s*l/],txt.includes('poca agua')?1:1.5);
   const imc=altura?Number((peso/Math.pow(altura/100,2)).toFixed(1)):0;
+  const mujer=txt.includes('mujer')||txt.includes('laura')||txt.includes('ella')||txt.includes('femenino');
+  let grasa=0;
+  if(altura&&cuello&&cintura&&(!mujer||cadera)){
+    const raw=mujer
+      ?163.205*Math.log10(cintura+cadera-cuello)-97.684*Math.log10(altura)-78.387
+      :86.010*Math.log10(cintura-cuello)-70.041*Math.log10(altura)+36.76;
+    grasa=clamp(Number(raw.toFixed(1)),8,55);
+  }else{
+    grasa=clamp(Number(((imc*1.2)+(mujer?7:1)).toFixed(1)),12,42);
+  }
+  const masaGrasa=Number((peso*grasa/100).toFixed(1));
+  const masaMagra=Number((peso-masaGrasa).toFixed(1));
+  const proteinaMin=Math.round(masaMagra*1.5);
+  const proteinaMax=Math.round(masaMagra*2);
   const sedentario=txt.includes('sentad')||txt.includes('sedentar')||txt.includes('entrena muy poco');
   const dulce=txt.includes('dulce')||txt.includes('ansiedad');
   const piel=txt.includes('piel')||txt.includes('pelo')||txt.includes('apagada');
@@ -559,19 +594,19 @@ function demoProfile(prompt){
   const skinScore=clamp(78-(piel?22:0)-(agua<1.5?8:0),30,88);
   const mentalScore=clamp(Math.round((energyScore+stressScore+sleepScore)/3),28,88);
   const score=Math.round((nutritionScore+energyScore+sleepScore+skinScore+bodyScore+mentalScore)/6);
-  return {txt,edad,peso,altura,sueno,energia,estres,agua,imc,score,nutritionScore,energyScore,sleepScore,skinScore,bodyScore,mentalScore};
+  return {txt,edad,peso,altura,cintura,cuello,cadera,mujer,sueno,energia,estres,agua,imc,grasa,masaGrasa,masaMagra,proteinaMin,proteinaMax,score,nutritionScore,energyScore,sleepScore,skinScore,bodyScore,mentalScore};
 }
 function demoResponse(systemPrompt,userPrompt){
   const p=demoProfile(userPrompt);
-  if(systemPrompt.includes('Experto en bienestar')){
-    const mujer=p.txt.includes('mujer')||p.txt.includes('laura')||p.txt.includes('ella');
-    const grasa=clamp(Math.round((p.imc*1.2)+(mujer?7:1)),12,42);
-    const tmb=Math.round((10*p.peso)+(6.25*p.altura)-(5*p.edad)+(mujer?-161:5));
+  if(systemPrompt.includes('Experto en bienestar')||systemPrompt.includes('Asesor nutricional de control')){
+    const tmb=Math.round((10*p.peso)+(6.25*p.altura)-(5*p.edad)+(p.mujer?-161:5));
     const kcal=Math.round(tmb*(p.txt.includes('activo')?1.55:p.txt.includes('moderado')?1.45:1.25));
     return {
       score:p.score,imc:p.imc,imc_cat:p.imc>=30?'Obesidad':p.imc>=25?'Sobrepeso':p.imc>=18.5?'Normal':'Bajo',
-      grasa_pct:grasa,grasa_cat:grasa>=32?'Alta':grasa>=24?'Mejorable':'Saludable',
-      masa_muscular_kg:Number((p.peso*(1-grasa/100)*0.72).toFixed(1)),tmb,kcal_mantenimiento:kcal,
+      grasa_pct:p.grasa,grasa_cat:p.grasa>=32?'Alta':p.grasa>=24?'Mejorable':'Saludable',
+      masa_grasa_kg:p.masaGrasa,masa_magra_kg:p.masaMagra,masa_muscular_kg:Number((p.masaMagra*0.72).toFixed(1)),
+      proteina_min_g:p.proteinaMin,proteina_max_g:p.proteinaMax,tmb,kcal_mantenimiento:kcal,
+      nota_medidas:'Fotos frente, lado y espalda antes del día 1.',
       cats:{
         nutricion:{score:p.nutritionScore,label:'Nutrición',estado:scoreLabel(p.nutritionScore,'Buena','Mejorable','Deficiente')},
         energia:{score:p.energyScore,label:'Energía',estado:scoreLabel(p.energyScore,'Estable','Irregular','Baja')},
@@ -596,7 +631,7 @@ function demoResponse(systemPrompt,userPrompt){
       ]
     };
   }
-  if(systemPrompt.includes('Coach de bienestar')){
+  if(systemPrompt.includes('Coach de bienestar')||systemPrompt.includes('Coach Herbalife')){
     return {
       escenario_neg:'Sin cambios: más fatiga, antojos y estancamiento.',
       escenario_pos:'En 60 días: energía, digestión y cuerpo respondiendo.',
@@ -609,25 +644,39 @@ function demoResponse(systemPrompt,userPrompt){
         {area:'Movimiento',texto:'Caminar 30 minutos al día.'},
         {area:'Suplementación',texto:'Cubrir micronutrientes clave.'}
       ],
+      argumentos_venta:[
+        {titulo:'Programa completo',texto:'Encaja porque controla dos comidas, proteína y rutina sin improvisar.'},
+        {titulo:'Batido simple',texto:'Fórmula 1 + PDM/VPDM con agua mantiene calorías medibles.'},
+        {titulo:'Seguimiento visual',texto:'Fotos y medidas permiten ver cambios aunque la báscula tarde.'}
+      ],
+      consecuencias_no_actuar:[
+        'Seguirá compensando cansancio con dulce.',
+        'La falta de recuperación frenará el cambio corporal.',
+        'Sin estructura, volverá a improvisar comidas.'
+      ],
+      puente_programa:'Lo ideal es empezar con el programa completo: desayuno y cena controlados, comida real equilibrada, snacks proteicos y seguimiento semanal.',
+      frase_cierre:'Por tu objetivo de pérdida de grasa, empezaría con el programa completo de 60 días: dos batidos simples al día, comida equilibrada y control semanal con fotos y medidas. ¿Lo organizamos para que empieces esta semana?',
       resumen:'Perfil con bloqueos claros y mejora rápida.'
     };
   }
-  if(systemPrompt.includes('Nutricionista.')){
+  if(systemPrompt.includes('Nutricionista.')||systemPrompt.includes('Asesor nutricional Herbalife')){
     const objetivo=Math.round((p.imc>=25?p.peso*22:p.peso*28)/50)*50;
     return {plan_alimentacion:{
-      kcal_objetivo:objetivo,proteina_g:Math.round(p.peso*1.6),nota_deficit:'Déficit suave y sostenible.',
+      kcal_objetivo:objetivo,proteina_g:p.proteinaMin,proteina_max_g:p.proteinaMax,nota_deficit:'Déficit suave y sostenible.',
+      preparacion_batido:'250 ml agua + 2 Fórmula 1 + 1 PDM/VPDM',
+      regla_batido:'Para pérdida de grasa, sin fruta, avena, frutos secos, semillas ni leche.',
       comidas:[
-        {tiempo:'Desayuno',descripcion:'Huevos, fruta y avena',kcal:350},
-        {tiempo:'Media mañana',descripcion:'Yogur y nueces',kcal:180},
-        {tiempo:'Almuerzo',descripcion:'Proteína, verduras y arroz',kcal:480},
-        {tiempo:'Merienda',descripcion:'Batido o queso fresco',kcal:180},
-        {tiempo:'Cena',descripcion:'Pescado y verduras',kcal:380}
+        {tiempo:'Desayuno',descripcion:'Té + Aloe + batido Herbalife',kcal:220},
+        {tiempo:'Media mañana',descripcion:'Snack proteico si hay hambre',kcal:150},
+        {tiempo:'Almuerzo',descripcion:'Proteína, verduras y carbohidrato',kcal:520},
+        {tiempo:'Merienda',descripcion:'Yogur alto en proteína',kcal:180},
+        {tiempo:'Cena',descripcion:'Batido Herbalife simple',kcal:220}
       ],
       suplementos_recomendados:[
-        {nombre:'Proteína',razon:'Facilita llegar al objetivo diario',cuando:'Desayuno o post-entreno'},
-        {nombre:'Omega-3',razon:'Apoya piel e inflamación',cuando:'Comida principal'},
-        {nombre:'Magnesio',razon:'Sueño y gestión del estrés',cuando:'Antes de dormir'},
-        {nombre:'Multinutriente',razon:'Cubre huecos de micronutrición',cuando:'Con desayuno'}
+        {nombre:'Fórmula 1 + PDM/VPDM',razon:'Estructura dos comidas y proteína',cuando:'Desayuno y cena'},
+        {nombre:'Aloe + Té',razon:'Rutina, hidratación y energía',cuando:'Por la mañana'},
+        {nombre:'Fibra',razon:'Saciedad y tránsito progresivo',cuando:'Según hambre/digestión'},
+        {nombre:'Magnesio',razon:'Estrés y descanso mejorable',cuando:'Noche si encaja'}
       ]
     }};
   }
@@ -938,8 +987,8 @@ async function runAI(prompt,nombre,telefono){
   go('s-report');
   try{
     setLoad('Calculando métricas corporales...');
-    const r1=await callAPI('Experto en bienestar. SOLO JSON. Strings max 5 palabras. Calcula métricas reales.',
-      `Perfil: ${prompt}\nResponde exactamente:\n{"score":52,"imc":24.1,"imc_cat":"Normal","grasa_pct":14.2,"grasa_cat":"Saludable","masa_muscular_kg":42.0,"tmb":1650,"kcal_mantenimiento":2145,"cats":{"nutricion":{"score":55,"label":"Nutrición","estado":"Mejorable"},"energia":{"score":60,"label":"Energía","estado":"Estable"},"sueno":{"score":50,"label":"Descanso","estado":"Alterado"},"piel":{"score":65,"label":"Piel & Glow","estado":"Buena"},"composicion":{"score":70,"label":"Composición","estado":"Atlética"},"mental":{"score":58,"label":"Mente","estado":"Moderada"}}}`);
+    const r1=await callAPI('Asesor nutricional de control de peso. SOLO JSON. No diagnostiques ni prometas resultados. Calcula IMC, grasa estimada con fórmula Marina si hay cintura/cuello/cadera, masa grasa, masa magra y proteína 1.5-2g por kg de masa magra.',
+      `Perfil: ${prompt}\nResponde exactamente con números realistas:\n{"score":52,"imc":24.1,"imc_cat":"Normal","grasa_pct":28.2,"grasa_cat":"Mejorable","masa_grasa_kg":20.8,"masa_magra_kg":53.2,"masa_muscular_kg":38.3,"proteina_min_g":80,"proteina_max_g":106,"tmb":1520,"kcal_mantenimiento":1900,"nota_medidas":"Fotos frente, lado y espalda antes del día 1.","cats":{"nutricion":{"score":55,"label":"Nutrición","estado":"Mejorable"},"energia":{"score":60,"label":"Energía","estado":"Estable"},"sueno":{"score":50,"label":"Descanso","estado":"Alterado"},"piel":{"score":65,"label":"Piel & Glow","estado":"Buena"},"composicion":{"score":70,"label":"Composición","estado":"Atlética"},"mental":{"score":58,"label":"Mente","estado":"Moderada"}}}`);
 
     setLoad('Detectando carencias nutricionales...');
     const r2=await callAPI('Nutricionista experto. SOLO JSON. Strings max 6 palabras.',
@@ -968,12 +1017,12 @@ async function generarDiagnostico(){
   go('s-report');
   try{
     setLoad('Generando plan de mejora...');
-    const r3=await callAPI('Coach de bienestar. SOLO JSON sin texto extra. Strings MAX 8 palabras cada uno.',
-      `Perfil: ${prompt}\nJSON exacto (strings cortos):\n{"escenario_neg":"Sin cambios: fatiga, grasa y deterioro en 12 meses.","escenario_pos":"En 60 días: energía, cuerpo y piel transformados.","dolor_puntos":["Fatiga sin mejora con descanso","Cuerpo sin respuesta a esfuerzos","Piel y pelo delatan estado interno","Niebla mental afecta rendimiento"],"vision_puntos":["Energía real al despertar","Reconocerte al espejo de nuevo","Rendir al 100% en todo","Control total de tu bienestar"],"pautas":[{"area":"Nutrición","texto":"Proteína en cada comida."},{"area":"Descanso","texto":"Sin pantallas 1h antes de dormir."},{"area":"Hidratación","texto":"2L agua diarios al despertar."},{"area":"Movimiento","texto":"30 min diarios mínimo."},{"area":"Suplementación","texto":"Tu dieta no cubre micronutrientes esenciales."}],"resumen":"Potencial bloqueado por hábitos corregibles."}`);
+    const r3=await callAPI('Coach Herbalife de control de peso y venta consultiva. SOLO JSON sin texto extra. No prometas resultados, no diagnostiques y no uses lenguaje médico. Conecta problema, posible causa de hábito/nutrición, acción práctica y siguiente paso.',
+      `Perfil: ${prompt}\nDevuelve JSON exacto. Personaliza para recomendar primero programa completo Herbalife cuando el objetivo sea pérdida de grasa, ansiedad, poco tiempo o baja constancia. Incluye fotos/medidas antes del día 1:\n{"escenario_neg":"Sin estructura seguirá improvisando, con más antojos y estancamiento.","escenario_pos":"Con el programa completo gana orden, proteína y constancia medible.","dolor_puntos":["Fatiga sin mejora con descanso","Ansiedad por dulce por la tarde","Cuerpo sin respuesta visible","Falta de estructura diaria"],"vision_puntos":["Dos comidas controladas al día","Proteína diaria más fácil","Menos improvisación","Progreso con fotos y medidas"],"pautas":[{"area":"Fotos y medidas","texto":"Frente, lado, espalda y medidas día 1."},{"area":"Batido simple","texto":"Agua, Fórmula 1 y PDM/VPDM."},{"area":"Comida real","texto":"Proteína, verduras y carbohidrato."},{"area":"Snacks","texto":"Usarlos para evitar ansiedad."},{"area":"Seguimiento","texto":"Revisar adherencia cada semana."}],"argumentos_venta":[{"titulo":"Programa completo","texto":"Controla desayuno y cena sin improvisar."},{"titulo":"Proteína medida","texto":"Ayuda a llegar al objetivo diario."},{"titulo":"Adherencia","texto":"Es más fácil repetir una estructura simple."}],"consecuencias_no_actuar":["Seguirá compensando hambre con dulce","La falta de proteína puede frenar saciedad","Sin seguimiento no verá progreso real"],"puente_programa":"Lo más práctico es el programa completo: dos batidos Herbalife simples, comida equilibrada, snacks proteicos y revisión semanal.","frase_cierre":"Por tu objetivo, empezaría con el programa completo de 60 días: dos batidos simples al día, comida equilibrada y seguimiento con fotos y medidas. ¿Lo organizamos para empezar esta semana?","resumen":"Necesita estructura simple, proteína y seguimiento."}`);
 
     setLoad('Diseñando plan nutricional...');
-    const r4=await callAPI('Nutricionista. SOLO JSON sin texto extra. Strings MAX 6 palabras. Déficit 20% si objetivo es perder peso.',
-      `Perfil: ${prompt}\nJSON exacto (strings cortos):\n{"plan_alimentacion":{"kcal_objetivo":1600,"proteina_g":120,"nota_deficit":"Déficit 20% para perder 0.5kg/semana","comidas":[{"tiempo":"Desayuno","descripcion":"Huevos, avena, sin azúcar","kcal":350},{"tiempo":"Media mañana","descripcion":"Fruta y proteína","kcal":150},{"tiempo":"Almuerzo","descripcion":"Proteína, verdura, carbos moderados","kcal":450},{"tiempo":"Merienda","descripcion":"Yogur o proteína","kcal":150},{"tiempo":"Cena","descripcion":"Proteína y verdura, sin carbos","kcal":350}],"suplementos_recomendados":[{"nombre":"Proteína whey","razon":"Cubre déficit proteico fácilmente","cuando":"Desayuno o post-entreno"},{"nombre":"Vitamina D3+K2","razon":"Déficit universal, energía e inmunidad","cuando":"Con desayuno"},{"nombre":"Omega-3","razon":"Reduce inflamación y mejora piel","cuando":"Con comida principal"},{"nombre":"Magnesio bisglicinato","razon":"Mejora sueño y reduce estrés","cuando":"30 min antes dormir"}]}}`,2000);
+    const r4=await callAPI('Asesor nutricional Herbalife. SOLO JSON. No prometas resultados. Para pérdida de grasa, el batido SIEMPRE con 250ml agua + 2 Fórmula 1 + 1 PDM/VPDM. Nunca añadir fruta, avena, frutos secos, semillas, leche ni extras calóricos.',
+      `Perfil: ${prompt}\nJSON exacto:\n{"plan_alimentacion":{"kcal_objetivo":1600,"proteina_g":90,"proteina_max_g":120,"nota_deficit":"Déficit suave y sostenible.","preparacion_batido":"250 ml agua + 2 Fórmula 1 + 1 PDM/VPDM","regla_batido":"Sin fruta, avena, frutos secos, semillas ni leche.","comidas":[{"tiempo":"Desayuno","descripcion":"Té + Aloe + batido Herbalife","kcal":220},{"tiempo":"Media mañana","descripcion":"Snack proteico si hay hambre","kcal":150},{"tiempo":"Almuerzo","descripcion":"Proteína, verduras y carbohidrato","kcal":520},{"tiempo":"Merienda","descripcion":"Yogur alto en proteína","kcal":180},{"tiempo":"Cena","descripcion":"Batido Herbalife simple","kcal":220}],"suplementos_recomendados":[{"nombre":"Fórmula 1 + PDM/VPDM","razon":"Estructura dos comidas y proteína","cuando":"Desayuno y cena"},{"nombre":"Aloe + Té","razon":"Rutina, hidratación y energía","cuando":"Por la mañana"},{"nombre":"Fibra","razon":"Saciedad y tránsito progresivo","cuando":"Según digestión"},{"nombre":"Magnesio","razon":"Estrés y descanso mejorable","cuando":"Noche si encaja"}]}}`,2200);
 
     setLoad('Creando plan de ejercicio...');
     const r5=await callAPI('Entrenador personal. SOLO JSON. Strings MAX 4 palabras.',
@@ -1070,7 +1119,10 @@ function renderReport(entry){
       <div class="mrow"><span style="color:var(--text2)">Fecha análisis</span><span>${fmt(entry.date)}</span></div>
       ${r.imc?`<div class="mrow"><span style="color:var(--text2)">IMC calculado</span><span>${r.imc} — ${r.imc_cat}</span></div>`:''}
       ${r.grasa_pct?`<div class="mrow"><span style="color:var(--text2)">Grasa corporal</span><span style="color:var(--orange)">${r.grasa_pct}% — ${r.grasa_cat}</span></div>`:''}
+      ${r.masa_grasa_kg?`<div class="mrow"><span style="color:var(--text2)">Masa grasa est.</span><span>${r.masa_grasa_kg} kg</span></div>`:''}
+      ${r.masa_magra_kg?`<div class="mrow"><span style="color:var(--text2)">Masa magra est.</span><span>${r.masa_magra_kg} kg</span></div>`:''}
       ${r.masa_muscular_kg?`<div class="mrow"><span style="color:var(--text2)">Masa muscular est.</span><span>${r.masa_muscular_kg} kg</span></div>`:''}
+      ${r.proteina_min_g?`<div class="mrow"><span style="color:var(--text2)">Proteína objetivo</span><span>${r.proteina_min_g}-${r.proteina_max_g||Math.round(r.proteina_min_g*1.3)} g/día</span></div>`:''}
       ${r.tmb?`<div class="mrow"><span style="color:var(--text2)">Metabolismo basal</span><span>${r.tmb} kcal</span></div>`:''}
       ${r.kcal_mantenimiento?`<div class="mrow"><span style="color:var(--text2)">Calorías mantenimiento</span><span>${r.kcal_mantenimiento} kcal</span></div>`:''}
       ${r.resumen?`<div style="margin-top:12px;padding:12px;background:rgba(201,168,76,.04);border:1px solid var(--border3);border-radius:8px;font-size:13px;color:var(--text2);line-height:1.6;font-style:italic">"${r.resumen}"</div>`:''}
@@ -1090,9 +1142,13 @@ function renderReport(entry){
       <div class="sec-lbl">Métricas corporales</div>
       <div class="mrow"><span style="color:var(--text2)">IMC</span><span style="font-weight:500">${r.imc} — ${r.imc_cat}</span></div>
       ${r.grasa_pct?`<div class="mrow"><span style="color:var(--text2)">Grasa corporal</span><span style="font-weight:500;color:var(--orange)">${r.grasa_pct}% — ${r.grasa_cat}</span></div>`:''}
+      ${r.masa_grasa_kg?`<div class="mrow"><span style="color:var(--text2)">Masa grasa estimada</span><span style="font-weight:500">${r.masa_grasa_kg} kg</span></div>`:''}
+      ${r.masa_magra_kg?`<div class="mrow"><span style="color:var(--text2)">Masa magra estimada</span><span style="font-weight:500">${r.masa_magra_kg} kg</span></div>`:''}
       ${r.masa_muscular_kg?`<div class="mrow"><span style="color:var(--text2)">Masa muscular est.</span><span style="font-weight:500">${r.masa_muscular_kg} kg</span></div>`:''}
+      ${r.proteina_min_g?`<div class="mrow"><span style="color:var(--text2)">Proteína diaria</span><span style="font-weight:500;color:var(--gold)">${r.proteina_min_g}-${r.proteina_max_g||Math.round(r.proteina_min_g*1.3)} g</span></div>`:''}
       <div class="mrow"><span style="color:var(--text2)">Metabolismo basal</span><span style="font-weight:500">${r.tmb} kcal</span></div>
       <div class="mrow"><span style="color:var(--text2)">Calorías mantenimiento</span><span style="font-weight:500">${r.kcal_mantenimiento} kcal</span></div>
+      <div style="margin-top:12px;padding:12px;background:rgba(201,168,76,.04);border:1px solid var(--border3);border-radius:8px;font-size:12px;color:var(--text2);line-height:1.6">El IMC es una referencia general. La grasa corporal es una estimación orientativa con medidas; no sustituye una medición clínica.</div>
     </div>
     ${r.macro_carencias?.length?`<div class="glass section">
       <div class="sec-lbl">Carencias de macronutrientes</div>
@@ -1144,6 +1200,20 @@ function renderReport(entry){
         <div style="font-size:13px;line-height:1.7;color:rgba(150,255,180,.9)">${r.escenario_pos||'Con los cambios adecuados, en 60 días notarás mejoras reales en energía y composición.'}</div>
       </div>
     </div>
+    <div class="glass-gold section">
+      <div class="sec-lbl">Antes de empezar</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:12px">Antes del día 1, toma referencias para comparar progreso real. No es para juzgar, es para medir mejor que solo con la báscula.</div>
+      <div class="grid2">
+        <div style="padding:12px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px">
+          <div style="font-size:10px;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:8px">Fotos</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.7">Frente<br>Lado<br>Espalda</div>
+        </div>
+        <div style="padding:12px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px">
+          <div style="font-size:10px;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:8px">Medidas</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.7">Peso<br>Cintura<br>Cuello<br>Cadera si es mujer</div>
+        </div>
+      </div>
+    </div>
     ${r.pautas?.length?`<div class="glass section">
       <div class="sec-lbl">Plan de mejora</div>
       ${r.pautas.map(p=>`<div class="pauta-item">
@@ -1153,8 +1223,13 @@ function renderReport(entry){
     </div>`:''}
     ${r.plan_alimentacion?.comidas?.length?`<div class="glass section">
       <div class="sec-lbl">Plan nutricional ejemplo</div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Objetivo: <span style="color:var(--gold);font-weight:500">${r.plan_alimentacion.kcal_objetivo} kcal</span> · Proteína: <span style="color:var(--gold);font-weight:500">${r.plan_alimentacion.proteina_g}g/día</span></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Objetivo: <span style="color:var(--gold);font-weight:500">${r.plan_alimentacion.kcal_objetivo} kcal</span> · Proteína: <span style="color:var(--gold);font-weight:500">${r.plan_alimentacion.proteina_g}${r.plan_alimentacion.proteina_max_g?'-'+r.plan_alimentacion.proteina_max_g:''}g/día</span></div>
       ${r.plan_alimentacion.nota_deficit?`<div style="font-size:11px;color:var(--orange);margin-bottom:14px;padding:8px 10px;background:rgba(255,159,10,.06);border-radius:6px;border:1px solid rgba(255,159,10,.2)">📉 ${r.plan_alimentacion.nota_deficit}</div>`:''}
+      ${r.plan_alimentacion.preparacion_batido?`<div style="padding:12px;background:rgba(201,168,76,.05);border:1px solid var(--border3);border-radius:10px;margin-bottom:10px">
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:5px">Batido pérdida de grasa</div>
+        <div style="font-size:13px;color:var(--text);line-height:1.6">${r.plan_alimentacion.preparacion_batido}</div>
+        ${r.plan_alimentacion.regla_batido?`<div style="font-size:11px;color:var(--orange);line-height:1.5;margin-top:6px">${r.plan_alimentacion.regla_batido}</div>`:''}
+      </div>`:''}
       ${r.plan_alimentacion.comidas.map(c=>`<div class="plan-box">
         <div style="font-size:10px;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:5px">${c.tiempo}</div>
         <div style="font-size:13px;margin-bottom:3px">${c.descripcion}</div>
@@ -1162,8 +1237,8 @@ function renderReport(entry){
       </div>`).join('')}
       ${r.plan_alimentacion.suplementos_recomendados?.length?`
       <div style="margin-top:16px">
-        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border3)">💊 Suplementación esencial detectada</div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6">Tu dieta actual no cubre todos los micronutrientes que tu cuerpo necesita para funcionar al óptimo. Estos son los que marcarían una diferencia inmediata:</div>
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border3)">💊 Uso recomendado del programa</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6">Prioridad comercial: presentar primero el programa completo como la opción más simple y fácil de repetir. Si no encaja, bajar a opciones separadas.</div>
         ${r.plan_alimentacion.suplementos_recomendados.map(s=>`<div style="padding:12px;background:rgba(201,168,76,.04);border:1px solid var(--border3);border-radius:10px;margin-bottom:8px">
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
             <span style="font-size:14px;font-weight:500;color:var(--gold)">${s.nombre}</span>
@@ -1172,8 +1247,8 @@ function renderReport(entry){
           <div style="font-size:12px;color:var(--text2);line-height:1.5">${s.razon}</div>
         </div>`).join('')}
         <div style="margin-top:12px;padding:14px;background:rgba(48,209,88,.06);border:1px solid rgba(48,209,88,.2);border-radius:10px">
-          <div style="font-size:12px;color:var(--green);font-weight:500;margin-bottom:4px">✦ La buena noticia</div>
-          <div style="font-size:12px;color:rgba(150,255,180,.85);line-height:1.6">Existe un programa nutricional que ya incluye todos estos nutrientes en las proporciones exactas que necesitas, de forma sencilla y sin tener que gestionar múltiples suplementos por separado.</div>
+          <div style="font-size:12px;color:var(--green);font-weight:500;margin-bottom:4px">✦ Enfoque recomendado</div>
+          <div style="font-size:12px;color:rgba(150,255,180,.85);line-height:1.6">No vender productos sueltos de entrada: presentar una estructura diaria con dos comidas controladas, comida real, snacks y seguimiento.</div>
         </div>
       </div>`:''}
     </div>`:''}
@@ -1185,6 +1260,31 @@ function renderReport(entry){
         <div style="font-size:12px;color:var(--text2)">${d.descripcion}</div></div>
       </div>`).join('')}
     </div>`:''}
+    <div class="glass-gold section">
+      <div class="sec-lbl">Guía del distribuidor</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:14px">Uso interno: argumentos para conducir la conversación hacia el programa Herbalife de forma natural, ética y sin prometer resultados.</div>
+      ${r.argumentos_venta?.length?`<div style="margin-bottom:16px">
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:8px">Argumentos de venta</div>
+        ${r.argumentos_venta.map(a=>`<div style="padding:11px 0;border-bottom:1px solid var(--border)">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">${a.titulo}</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.5">${a.texto}</div>
+        </div>`).join('')}
+      </div>`:''}
+      ${r.consecuencias_no_actuar?.length?`<div style="margin-bottom:16px">
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--red);text-transform:uppercase;margin-bottom:8px">Consecuencias de no actuar</div>
+        ${r.consecuencias_no_actuar.map(c=>`<div style="display:flex;gap:9px;padding:7px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--red)">✗</span><span style="font-size:12px;color:rgba(255,150,150,.92);line-height:1.5">${c}</span>
+        </div>`).join('')}
+      </div>`:''}
+      ${r.puente_programa?`<div style="padding:12px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;margin-bottom:12px">
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:5px">Puente al programa</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.6">${r.puente_programa}</div>
+      </div>`:''}
+      ${r.frase_cierre?`<div style="padding:14px;background:rgba(48,209,88,.06);border:1px solid rgba(48,209,88,.22);border-radius:10px">
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--green);text-transform:uppercase;margin-bottom:6px">Cierre sugerido</div>
+        <div style="font-size:13px;color:rgba(150,255,180,.9);line-height:1.7">"${r.frase_cierre}"</div>
+      </div>`:''}
+    </div>
     <div class="glass section">
       <div class="sec-lbl">Compartir informe</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
@@ -1243,11 +1343,11 @@ function buildHTML(){
 <div class="hero"><div style="font-size:10px;letter-spacing:3px;color:#8A8075;text-transform:uppercase;margin-bottom:18px">INFORME · ${fmt(r.date)}</div><div style="font-size:21px;font-weight:600;margin-bottom:14px">${r.nombre}</div><div class="sw"><svg viewBox="0 0 120 120" width="140" height="140"><circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="10"/><circle cx="60" cy="60" r="52" fill="none" stroke="${col}" stroke-width="10" stroke-dasharray="${dash} ${circ}" stroke-linecap="round" transform="rotate(-90 60 60)"/></svg><div class="si"><div style="font-size:10px;letter-spacing:2px;color:#8A8075">SCORE</div><div style="font-size:44px;font-weight:700;color:${col};letter-spacing:-2px;line-height:1">${rp.score}</div><div style="font-size:9px;letter-spacing:2px;color:${col};font-weight:600">${rp.score>=70?'ÓPTIMO':rp.score>=45?'MEJORABLE':'CRÍTICO'}</div></div></div>${rp.resumen?`<div style="font-size:13px;color:#8A8075;font-style:italic;padding:0 20px">"${rp.resumen}"</div>`:''}</div>
 <div style="display:flex;justify-content:center;padding:10px 16px 16px">${ri(rp.cats)}</div>
 <div class="cg">${cats.map((c,i)=>`<div class="cc"><div style="font-size:20px;margin-bottom:5px">${ICONS[catKeys[i]]||'◎'}</div><div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#8A8075;margin-bottom:3px">${c.label}</div><div style="font-size:24px;font-weight:600;color:${scc(c.score)}">${c.score}</div><div style="font-size:11px;color:#8A8075">${c.estado}</div><div class="bar"><div class="bf" style="width:${c.score}%;background:${scc(c.score)}"></div></div></div>`).join('')}</div>
-<div class="glass"><div class="sl">Métricas corporales</div><div class="row"><span style="color:#8A8075">IMC</span><span>${rp.imc} — ${rp.imc_cat}</span></div>${rp.grasa_pct?`<div class="row"><span style="color:#8A8075">Grasa corporal</span><span style="color:#FF9F0A">${rp.grasa_pct}% — ${rp.grasa_cat}</span></div>`:''}<div class="row"><span style="color:#8A8075">Metabolismo basal</span><span>${rp.tmb} kcal</span></div><div class="row"><span style="color:#8A8075">Calorías mantenimiento</span><span>${rp.kcal_mantenimiento} kcal</span></div></div>
+<div class="glass"><div class="sl">Métricas corporales</div><div class="row"><span style="color:#8A8075">IMC</span><span>${rp.imc} — ${rp.imc_cat}</span></div>${rp.grasa_pct?`<div class="row"><span style="color:#8A8075">Grasa corporal</span><span style="color:#FF9F0A">${rp.grasa_pct}% — ${rp.grasa_cat}</span></div>`:''}${rp.masa_grasa_kg?`<div class="row"><span style="color:#8A8075">Masa grasa</span><span>${rp.masa_grasa_kg} kg</span></div>`:''}${rp.masa_magra_kg?`<div class="row"><span style="color:#8A8075">Masa magra</span><span>${rp.masa_magra_kg} kg</span></div>`:''}${rp.proteina_min_g?`<div class="row"><span style="color:#8A8075">Proteína diaria</span><span style="color:#C9A84C">${rp.proteina_min_g}-${rp.proteina_max_g||Math.round(rp.proteina_min_g*1.3)} g</span></div>`:''}<div class="row"><span style="color:#8A8075">Metabolismo basal</span><span>${rp.tmb} kcal</span></div><div class="row"><span style="color:#8A8075">Calorías mantenimiento</span><span>${rp.kcal_mantenimiento} kcal</span></div><div style="font-size:11px;color:#8A8075;line-height:1.6;margin-top:12px">Datos orientativos. La grasa corporal se estima con medidas cuando están disponibles.</div></div>
 ${rp.micro_carencias?.length?`<div class="glass"><div class="sl">Deficiencias detectadas</div><div style="margin-bottom:12px">${rp.micro_carencias.map(m=>`<span class="dtag">⚠ ${m.micro}</span>`).join('')}</div>${rp.micro_carencias.map(m=>`<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06)"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:13px;font-weight:500">${m.micro}</span><span style="font-size:11px;color:#FF453A">${m.nivel}</span></div><div style="font-size:12px;color:#8A8075">${m.sintomas}</div></div>`).join('')}</div>`:''}
 <div style="padding:0 16px"><div class="scn sbad"><div style="font-size:10px;letter-spacing:2px;color:#FF453A;text-transform:uppercase;margin-bottom:8px;font-weight:500">⚡ Si sigues igual...</div><div style="font-size:13px;line-height:1.7;color:rgba(255,150,150,.9)">${rp.escenario_neg||'Sin cambios, el deterioro será progresivo.'}</div></div><div class="scn sgood"><div style="font-size:10px;letter-spacing:2px;color:#30D158;text-transform:uppercase;margin-bottom:8px;font-weight:500">✦ Si cambias ahora...</div><div style="font-size:13px;line-height:1.7;color:rgba(150,255,180,.9)">${rp.escenario_pos||'Con los cambios adecuados, en 60 días notarás mejoras reales.'}</div></div></div>
 ${rp.pautas?.length?`<div class="glass"><div class="sl">Plan de mejora</div>${rp.pautas.map(p=>`<div class="pi"><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#C9A84C;margin-bottom:5px">${p.area}</div><div style="font-size:13px;line-height:1.6">${p.texto}</div></div>`).join('')}</div>`:''}
-${rp.plan_alimentacion?.comidas?.length?`<div class="glass"><div class="sl">Plan nutricional</div><div style="font-size:12px;color:#8A8075;margin-bottom:14px">Objetivo: <b style="color:#C9A84C">${rp.plan_alimentacion.kcal_objetivo} kcal</b> · Proteína: <b style="color:#C9A84C">${rp.plan_alimentacion.proteina_g}g/día</b></div>${rp.plan_alimentacion.comidas.map(c=>`<div class="pb"><div style="font-size:10px;letter-spacing:1.5px;color:#C9A84C;text-transform:uppercase;margin-bottom:4px">${c.tiempo}</div><div style="font-size:13px;margin-bottom:3px">${c.descripcion}</div><div style="font-size:11px;color:#8A8075">${c.kcal} kcal</div></div>`).join('')}</div>`:''}
+${rp.plan_alimentacion?.comidas?.length?`<div class="glass"><div class="sl">Plan nutricional</div><div style="font-size:12px;color:#8A8075;margin-bottom:14px">Objetivo: <b style="color:#C9A84C">${rp.plan_alimentacion.kcal_objetivo} kcal</b> · Proteína: <b style="color:#C9A84C">${rp.plan_alimentacion.proteina_g}${rp.plan_alimentacion.proteina_max_g?'-'+rp.plan_alimentacion.proteina_max_g:''}g/día</b></div>${rp.plan_alimentacion.preparacion_batido?`<div class="pb" style="border:1px solid rgba(201,168,76,.25)"><div style="font-size:10px;letter-spacing:1.5px;color:#C9A84C;text-transform:uppercase;margin-bottom:4px">Batido pérdida de grasa</div><div style="font-size:13px;margin-bottom:3px">${rp.plan_alimentacion.preparacion_batido}</div>${rp.plan_alimentacion.regla_batido?`<div style="font-size:11px;color:#FF9F0A">${rp.plan_alimentacion.regla_batido}</div>`:''}</div>`:''}${rp.plan_alimentacion.comidas.map(c=>`<div class="pb"><div style="font-size:10px;letter-spacing:1.5px;color:#C9A84C;text-transform:uppercase;margin-bottom:4px">${c.tiempo}</div><div style="font-size:13px;margin-bottom:3px">${c.descripcion}</div><div style="font-size:11px;color:#8A8075">${c.kcal} kcal</div></div>`).join('')}</div>`:''}
 ${rp.plan_ejercicio?.length?`<div class="glass"><div class="sl">Plan de ejercicio</div>${rp.plan_ejercicio.map(d=>`<div class="row" style="align-items:flex-start;gap:10px"><span style="min-width:72px;color:#C9A84C;font-size:11px;letter-spacing:1px;text-transform:uppercase;padding-top:2px">${d.dia}</span><div style="flex:1"><div style="font-size:13px;font-weight:500;margin-bottom:2px">${d.tipo}${d.duracion&&d.duracion!=='-'?' · '+d.duracion:''}</div><div style="font-size:12px;color:#8A8075">${d.descripcion}</div></div></div>`).join('')}</div>`:''}
 <div class="ft">VITALSCAN PRO · WELLNESS INTELLIGENCE</div></body></html>`;
 }
