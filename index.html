@@ -405,12 +405,19 @@ function localFetch(path,method='GET',body=null){
 }
 async function sbFetch(path, method='GET', body=null){
   if(DEMO_MODE)return localFetch(path,method,body);
+  const sep=path.includes('?')?'&':'?';
+  const url=SB_URL+'/rest/v1/'+path+sep+'apikey='+encodeURIComponent(SB_KEY);
   const opts={method,headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'}};
   if(body) opts.body=JSON.stringify(body);
-  const res=await fetch(SB_URL+'/rest/v1/'+path,opts);
+  const res=await fetch(url,opts);
   const text=await res.text();
   if(!text) return [];
-  try{return JSON.parse(text)}catch(e){return []}
+  const data=(()=>{try{return JSON.parse(text)}catch(e){return []}})();
+  if(!res.ok){
+    console.warn('Supabase error:',data);
+    return {error:data};
+  }
+  return data;
 }
 
 async function sbGet(table, filter=''){
